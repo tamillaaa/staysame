@@ -3,6 +3,7 @@
 export const TABS = [
   { id: 'plan', label: 'Plan a trip' },
   { id: 'photo', label: 'From a photo' },
+  { id: 'memories', label: 'Memories' },
   { id: 'connect', label: 'Connect' },
 ] as const;
 

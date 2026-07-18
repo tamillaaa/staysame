@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import type { VibeAnalysis, VibeSuggestion } from './types';
+import type { ItineraryItem, VibeAnalysis, VibeSuggestion } from './types';
 
 // The spec named gemini-2.5-flash, but it is retired and returns
 // `404 — no longer available to new users` on a current key. This is the
@@ -8,6 +8,7 @@ const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_ALBUM_PHOTOS = 10;
 
 export class VibeError extends Error {
   constructor(
@@ -152,6 +153,185 @@ export async function analyzeVibe(args: {
     'GEMINI_BAD_JSON',
     502
   );
+}
+
+function buildAlbumCaptionPrompt(count: number): string {
+  return `You're captioning a traveler's own photos for a private trip photo album — not stock photography, their actual memories.
+
+For each of the ${count} images below, write exactly one short caption (12-20 words) that's warm and a little romanticized — the way a well-kept travel diary captions a photo, not a literal description of pixels. Capture the feeling of the moment, not a list of objects in frame.
+
+Do not invent a specific place, business, or street name unless it is clearly visible in the image itself (a sign, a landmark you are certain of). When in doubt, describe the scene and mood instead of guessing a name.
+
+Return strict JSON only, no markdown fences:
+{ "captions": string[] }
+with exactly ${count} entries, in the same order as the images.`;
+}
+
+function validateCaptions(data: unknown, count: number): string[] {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('response was not a JSON object');
+  }
+  const record = data as Record<string, unknown>;
+  const captions = Array.isArray(record.captions)
+    ? record.captions.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).map((c) => c.trim())
+    : [];
+  if (captions.length !== count) {
+    throw new Error(`expected ${count} captions, got ${captions.length}`);
+  }
+  return captions;
+}
+
+/**
+ * Caption a batch of the traveler's own trip photos in one call, so the
+ * captions read as a consistent set rather than N independent guesses.
+ * Retries once with a stricter reminder if the count doesn't match.
+ */
+export async function captionAlbum(
+  photos: Array<{ base64Image: string; mimeType: string }>
+): Promise<string[]> {
+  const ai = getClient();
+  const imageParts = photos.map((p) => ({ inlineData: { data: p.base64Image, mimeType: p.mimeType } }));
+  const basePrompt = buildAlbumCaptionPrompt(photos.length);
+
+  let lastError: Error | null = null;
+
+  for (const prompt of [basePrompt, `${basePrompt}\n\n${STRICTER_RETRY}`]) {
+    let raw: string | undefined;
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: [{ role: 'user', parts: [...imageParts, { text: prompt }] }],
+        config: { responseMimeType: 'application/json' },
+      });
+      raw = response.text;
+    } catch (err) {
+      throw wrapGeminiError(err);
+    }
+
+    try {
+      return validateCaptions(JSON.parse(stripFences(raw ?? '')), photos.length);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[gemini] unusable album caption response (${lastError.message}), retrying:`, raw);
+    }
+  }
+
+  throw new VibeError(
+    `We couldn't caption those photos (${lastError?.message ?? 'unknown error'}). Try again.`,
+    'GEMINI_BAD_JSON',
+    502
+  );
+}
+
+const NARRATION_SYSTEM =
+  'You are a warm, evocative travel narrator recording a short audio recap for someone about to relive their trip. You write for the ear, not the page — natural spoken rhythm, no visual formatting, and you never invent a detail that was not given to you.';
+
+function buildNarrationPrompt(args: {
+  destination: string;
+  summary: string;
+  items: ItineraryItem[];
+}): string {
+  const { destination, summary, items } = args;
+
+  const itemsBlock = items
+    .map(
+      (item, i) =>
+        `${i + 1}. Day ${item.day}, ${item.time_block}${item.is_side_quest ? ' (side quest)' : ''} — ${item.activity}: ${item.description}`
+    )
+    .join('\n');
+
+  // ~150 spoken words/min; aim for a tight 45-75 second recap regardless of how many items were picked.
+  const wordBudget = Math.min(220, 90 + items.length * 25);
+
+  return `Write a short audio narration script recapping a trip to ${destination}.
+
+Trip summary: ${summary}
+
+The traveler picked these moments to include, in order:
+${itemsBlock}
+
+Write ONE continuous piece of spoken narration — not a list, not a script with labels — that walks through these moments and captures the feeling of the trip. For each moment, evoke what it is and its vibe using only the description given; do not invent details, prices, or places not listed above. Use natural spoken transitions between moments ("Then, as the evening cools down...") rather than announcing "Day 2" or "afternoon" like a label.
+
+Rules:
+- Second person, present or future tense ("You start the morning...").
+- Sensory and vivid, but grounded — nothing invented beyond what's in the descriptions above.
+- Around ${wordBudget} words total. This is a short recap, not the full itinerary read aloud.
+- No headers, no bullet points, no markdown — plain spoken prose only, ready to feed directly to a text-to-speech engine.
+- Open with a one-line hook about the trip, close with a one-line send-off.`;
+}
+
+/** Generate a short spoken-word recap script for the traveler's selected activities. */
+export async function generateNarration(args: {
+  destination: string;
+  summary: string;
+  items: ItineraryItem[];
+}): Promise<string> {
+  const ai = getClient();
+
+  let raw: string | undefined;
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: buildNarrationPrompt(args) }] }],
+      config: { systemInstruction: NARRATION_SYSTEM },
+    });
+    raw = response.text;
+  } catch (err) {
+    throw wrapGeminiError(err);
+  }
+
+  const script = raw?.trim();
+  if (!script) {
+    throw new VibeError('Gemini returned no narration content.', 'GEMINI_EMPTY_RESPONSE', 502);
+  }
+  return script;
+}
+
+function buildAlbumNarrationPrompt(args: { captions: string[]; destination?: string }): string {
+  const { captions, destination } = args;
+  const list = captions.map((c, i) => `${i + 1}. ${c}`).join('\n');
+  const place = destination ? ` from ${destination}` : '';
+
+  // ~150 spoken words/min; aim for a tight 45-75 second recap regardless of how many photos were picked.
+  const wordBudget = Math.min(220, 90 + captions.length * 20);
+
+  return `Write a short audio voice note recapping a traveler's own photo album${place}, based only on these photo captions, in order:
+${list}
+
+Write ONE continuous piece of spoken narration weaving these moments into a single warm recollection — not a list, no caption read verbatim, no numbering spoken aloud. Use natural transitions between moments.
+
+Rules:
+- Second person, past tense, like remembering a trip just taken ("You wandered...", "You found...").
+- Warm and a little romanticized, but grounded only in what the captions describe — invent no new facts, places, or names.
+- Around ${wordBudget} words total.
+- No headers, no bullet points, no markdown — plain spoken prose only, ready to feed directly to a text-to-speech engine.
+- Open with a one-line hook, close with a one-line send-off.`;
+}
+
+/** Generate a short spoken-word voice note recapping an uploaded photo album. */
+export async function generateAlbumNarration(args: {
+  captions: string[];
+  destination?: string;
+}): Promise<string> {
+  const ai = getClient();
+
+  let raw: string | undefined;
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: buildAlbumNarrationPrompt(args) }] }],
+      config: { systemInstruction: NARRATION_SYSTEM },
+    });
+    raw = response.text;
+  } catch (err) {
+    throw wrapGeminiError(err);
+  }
+
+  const script = raw?.trim();
+  if (!script) {
+    throw new VibeError('Gemini returned no narration content.', 'GEMINI_EMPTY_RESPONSE', 502);
+  }
+  return script;
 }
 
 function wrapGeminiError(err: unknown): VibeError {

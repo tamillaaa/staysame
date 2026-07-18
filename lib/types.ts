@@ -99,6 +99,29 @@ export type GenerateItineraryResponse = {
   anchors: Anchor[];
 };
 
+export type NarrateRequest = {
+  destination: string;
+  summary: string;
+  items: ItineraryItem[];
+};
+
+export type NarrateResponse = {
+  /** The spoken-word script Claude wrote, in case the UI wants to show it. */
+  script: string;
+  audioBase64: string;
+  mimeType: string;
+};
+
+export type AlbumCaptionResponse = {
+  /** One caption per uploaded photo, in the same order they were sent. */
+  captions: string[];
+};
+
+export type AlbumNarrationRequest = {
+  captions: string[];
+  destination?: string;
+};
+
 export type ApiError = { error: string; code: string };
 
 /** A stay the traveler can book, as sent to the browser (no `raw` payload). */

@@ -5,13 +5,15 @@ destination (or let it surprise you), set a budget, and get a day-by-day plan
 that mixes top-rated real places, real ticketed events, and a couple of playful
 "side quests" per day.
 
-Built with Next.js (App Router), Supabase, Claude (itinerary generation), Gemini
-(image-to-destination), and Stay22 (hotels).
+Built with Next.js (App Router), Supabase, Claude (itinerary generation),
+Gemini (image-to-destination and narration scripts), Stay22 (hotels), and
+ElevenLabs (voice narration).
 
 > **Status:** this branch contains the foundation, the itinerary generator,
-> Stay22 hotel matching, and the photo-to-destination flow. The traveler
-> connector is unlocked by confirming a stay, but its QR code and matching still
-> need auth.
+> Stay22 hotel matching, the photo-to-destination flow, audio narration of a
+> selected day recap, and a post-trip photo album with captions and an
+> optional voice note. The traveler connector is unlocked by confirming a
+> stay, but its QR code and matching still need auth.
 
 ## Repository layout
 
@@ -41,8 +43,9 @@ Then fill in `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Saving trips | Optional. Without them itineraries generate but aren't persisted. |
 | `STAY22_API_KEY` | Hotel matching | Optional. Without it Stay22 runs in demo mode, capped at 5 requests/minute. |
 | `STAY22_AID` | Booking attribution | Optional. Without it bookings are not attributed to your affiliate account, and the UI says so. |
-| `GEMINI_API_KEY` | Photo tab | Not used yet on this branch. |
-| `ELEVENLABS_API_KEY` | Narration | Stretch goal, not wired up. |
+| `GEMINI_API_KEY` | Photo tab, album captions, and narration scripts | Required. Without it `/api/vibe-to-destination`, `/api/album-captions`, `/api/narrate` and `/api/album-narrate`'s script steps all return a clear 500. |
+| `ELEVENLABS_API_KEY` | Narration and voice-note audio | Optional. Without it `/api/narrate` and `/api/album-narrate` return a clear 500; everything else is unaffected. |
+| `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` | Narration voice/model | Optional. Default to ElevenLabs' premade "Rachel" voice and `eleven_turbo_v2_5`. |
 
 Apply the database schema with the Supabase CLI:
 
@@ -60,13 +63,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Page structure
 
-One page, three tabs, with the active tab in the URL as `?tab=plan|photo|connect`
-so tabs are linkable. Switching tabs does not reload the page.
+One page, four tabs, with the active tab in the URL as
+`?tab=plan|photo|memories|connect` so tabs are linkable. Switching tabs does
+not reload the page.
 
 - **Plan a trip** (default) — the itinerary generator. Hotel picks will render
   inline here once Stay22 is wired up.
 - **From a photo** — the image-to-destination uploader. Selecting a suggested
   destination switches back to the plan tab with it pre-filled.
+- **Memories** — upload photos from the trip you just took and get a short
+  caption per photo, plus an optional voice note over the set. Independent of
+  any planned itinerary; nothing here is persisted — it lives in the tab for
+  the session, same as the itinerary's narration audio.
 - **Connect** — the solo-traveler QR connector, unlocked by a booked hotel.
 
 ## API
@@ -121,6 +129,46 @@ Supabase Storage URL (`null` when storage isn't configured).
 itinerary, so a stay confirmed straight from the photo flow still has something
 for the Connect tab to attach a traveler code to.
 
+### `POST /api/narrate`
+
+```json
+{
+  "destination": "Lisbon, Portugal",
+  "summary": "A relaxed mid-range week mixing Alfama's viewpoints with day trips to Sintra.",
+  "items": [/* up to 12 selected ItineraryItem entries, from the itinerary response */]
+}
+```
+
+Writes a short (~45–75 second) spoken-word recap script with Gemini, grounded
+only in the selected items' own descriptions, then synthesizes it with
+ElevenLabs. Returns `{ script, audioBase64, mimeType }`; the UI decodes the
+audio client-side and plays it in an `<audio>` element. Ticking activities in
+the itinerary drives the `items` sent here — the "Generate narration" button
+in the UI stays disabled until at least one is selected.
+
+### `POST /api/album-captions`
+
+`multipart/form-data` with one or more `photos` fields. JPEG, PNG or WebP, up
+to 5MB each, up to 10 photos per request. Sends the whole batch to Gemini in
+one call and returns `{ captions: string[] }` — one short, warm caption per
+photo, in the same order they were sent, so the set reads consistently rather
+than as N independent guesses.
+
+### `POST /api/album-narrate`
+
+```json
+{
+  "captions": ["A tiled terrace above the rooftops of Alfama...", "..."],
+  "destination": "Lisbon, Portugal"
+}
+```
+
+Same two-step pipeline as `/api/narrate` (Gemini script, then ElevenLabs
+audio), but grounded in a photo album's captions instead of itinerary items,
+and in the past tense — a recollection rather than a preview. `destination` is
+optional context; the Memories tab isn't tied to a specific planned trip.
+Returns the same `{ script, audioBase64, mimeType }` shape.
+
 ## Implementation notes
 
 - **Structured outputs, not prompt-and-parse.** The itinerary comes back through
@@ -173,6 +221,22 @@ for the Connect tab to attach a traveler code to.
   prior mean by review count, so a 9.2 from 400 reviews outranks a 10 from 3.
 - **TypeScript is pinned to 5.x.** TypeScript 7 crashes the Next 16 build worker
   (`The "id" argument must be of type string`).
+- **Narration is a script, then a TTS pass — not one call.** Gemini writes the
+  spoken-word recap (grounded only in the selected items' own descriptions, no
+  headers or markdown, sized to ~150 words/minute of speech) and ElevenLabs
+  turns that text into audio. Splitting the steps means the script is never
+  garbled by voice-model quirks, and a `/api/narrate` failure clearly indicates
+  whether Gemini or ElevenLabs was the cause.
+- **Album captions are one batched call, not N.** All uploaded photos go to
+  Gemini together with a single prompt asking for one caption per image in
+  order. This is both cheaper than N separate calls and reads as a coherent
+  set — Gemini sees the whole batch and can vary its phrasing across photos
+  rather than each caption being written in isolation.
+- **The Memories tab has no persistence layer.** Photos, captions, and the
+  generated voice note all live in component state, same as the itinerary's
+  narration audio. Nothing is uploaded to Supabase Storage or saved to a
+  table — closing the tab loses the album. This was a deliberate scope call
+  for this branch, not a missing-key degradation like the rest of the app.
 
 ---
 

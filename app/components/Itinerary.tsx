@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import type { GenerateItineraryResponse, ItineraryItem } from '@/lib/types';
+import { useMemo, useRef, useState } from 'react';
+import { base64ToBlobUrl } from '@/lib/audio';
+import type { GenerateItineraryResponse, ItineraryItem, NarrateResponse } from '@/lib/types';
 import ItineraryMap from './ItineraryMap';
 
 function formatDateRange(start: string | null, end: string | null): string {
@@ -30,8 +31,11 @@ function groundingNote(sources: GenerateItineraryResponse['sources']): string | 
 }
 
 export default function Itinerary({ trip }: { trip: GenerateItineraryResponse }) {
-  // Selection is for the narration/video step, which is not wired up yet.
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [narrating, setNarrating] = useState(false);
+  const [narrationError, setNarrationError] = useState<string | null>(null);
+  const [narration, setNarration] = useState<{ audioUrl: string; script: string } | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   const days = useMemo(() => {
     const grouped = new Map<number, ItineraryItem[]>();
@@ -50,6 +54,38 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
       else next.add(index);
       return next;
     });
+    // The selection changed, so any existing narration no longer matches it.
+    setNarration(null);
+    setNarrationError(null);
+  }
+
+  async function generateNarration() {
+    const items = trip.items.filter((_, index) => selected.has(index));
+    if (items.length === 0) return;
+
+    setNarrating(true);
+    setNarrationError(null);
+    try {
+      const response = await fetch('/api/narrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destination: trip.destination, summary: trip.summary, items }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Could not generate narration. Please try again.');
+      }
+      const { script, audioBase64, mimeType } = data as NarrateResponse;
+
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      const audioUrl = base64ToBlobUrl(audioBase64, mimeType);
+      audioUrlRef.current = audioUrl;
+      setNarration({ audioUrl, script });
+    } catch (err) {
+      setNarrationError(err instanceof Error ? err.message : 'Could not generate narration.');
+    } finally {
+      setNarrating(false);
+    }
   }
 
   const note = groundingNote(trip.sources);
@@ -116,19 +152,25 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
         center={trip.center}
       />
 
-      {/* TODO: wire up ElevenLabs narration + video generation for the selected
-          activities. The selection UI is live; the generate button stays disabled
-          until that lands. */}
-      <div className="video-bar">
+      <div className="narration-bar">
         <span className="hint">
           {selected.size === 0
             ? 'Tick activities to include them in a narrated recap.'
             : `${selected.size} ${selected.size === 1 ? 'activity' : 'activities'} selected.`}
         </span>
-        <button type="button" disabled title="Narration and video generation are not wired up yet">
-          Generate video
+        <button type="button" disabled={selected.size === 0 || narrating} onClick={generateNarration}>
+          {narrating ? 'Generating…' : 'Generate narration'}
         </button>
       </div>
+
+      {narrationError && <p className="error">{narrationError}</p>}
+
+      {narration && (
+        <div className="narration-result">
+          <audio controls src={narration.audioUrl} />
+          <p className="narration-script">{narration.script}</p>
+        </div>
+      )}
     </section>
   );
 }

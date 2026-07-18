@@ -140,8 +140,31 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgb
 .map-legs li { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .map-legs b { color: var(--ink); }
 .map-distance-note { margin: 18px 0 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
-.video-bar { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; margin-top: 20px; padding: 18px; border: 1px dashed var(--ink); background: rgba(255,255,255,.45); }
-.video-bar button { padding: 10px 17px; border: 1px solid var(--ink); border-radius: 0; color: var(--muted); background: white; font-weight: 800; opacity: .55; }
+.narration-bar { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; margin-top: 20px; padding: 18px; border: 1px dashed var(--ink); background: rgba(255,255,255,.45); }
+.narration-bar button { padding: 10px 17px; border: 1px solid var(--ink); border-radius: 0; color: var(--ink); background: var(--acid); font-weight: 800; cursor: pointer; }
+.narration-bar button:disabled { color: var(--muted); background: white; opacity: .55; cursor: not-allowed; }
+.narration-result { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; padding: 18px; border: 1px solid var(--ink); background: var(--paper); }
+.narration-result audio { width: 100%; }
+.narration-script { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; font-style: italic; }
+
+.memories-tab { width: min(760px,100%); margin: 0 auto; }
+.memories-head h2 { font: 400 clamp(30px,4.5vw,42px)/1.1 Georgia, 'Times New Roman', serif; letter-spacing: -.035em; }
+.memories-head .hint { margin-top: 10px; font-size: 13px; }
+
+.album-drop { display: flex; align-items: center; justify-content: center; min-height: 140px; margin-top: 22px; padding: 22px; border: 2px dashed var(--ink); background: rgba(255,255,255,.45); text-align: center; cursor: pointer; transition: .15s ease; }
+.album-drop:hover, .album-drop:focus-visible, .album-drop.dragging { background: var(--acid); outline: none; }
+.album-drop .dropzone-empty strong { display: block; font-size: 16px; }
+.album-drop .dropzone-empty span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
+
+.album { margin-top: 28px; }
+.album-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.link-small { padding: 0; border: 0; background: none; color: var(--blue-deep); font-size: 12px; font-weight: 800; text-decoration: underline; cursor: pointer; }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; margin-top: 16px; }
+.album-card { position: relative; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ink); background: var(--paper); box-shadow: 4px 4px 0 #252820; margin: 0; }
+.album-photo { width: 100%; height: 160px; object-fit: cover; border-bottom: 1px solid var(--ink); background: #e8e4d9; }
+.album-caption { margin: 0; padding: 11px 13px; color: var(--ink); font: italic 13px/1.5 Georgia, 'Times New Roman', serif; }
+.album-remove { position: absolute; top: 7px; right: 7px; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--ink); border-radius: 50%; color: var(--ink); background: white; font-size: 15px; line-height: 1; cursor: pointer; }
+.album-remove:hover { background: var(--danger); color: white; }
 
 .stays { width: min(1040px,100%); margin: 55px auto 0; padding-top: 31px; border-top: 1px solid var(--ink); }
 .stays-head { font: 400 clamp(34px,5vw,52px)/1 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; }
@@ -195,7 +218,8 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgb
   .map-layout { grid-template-columns: 1fr; }
   .map-canvas { min-height: 300px; border-right: 0; border-bottom: 1px solid var(--ink); }
   .map-details { padding: 16px; }
-  .video-bar { align-items: stretch; flex-direction: column; }
+  .narration-bar { align-items: stretch; flex-direction: column; }
+  .album-grid { grid-template-columns: 1fr; }
   .stay-grid { grid-template-columns: 1fr; }
   .empty { padding: 46px 22px; }
 }

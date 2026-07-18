@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Tabs, { isTabId, type TabId } from './Tabs';
 import PlanTab from './PlanTab';
 import PhotoTab from './PhotoTab';
+import MemoriesTab from './MemoriesTab';
 import ConnectTab from './ConnectTab';
 import type { ConfirmedStay, GenerateItineraryResponse } from '@/lib/types';
 
@@ -71,6 +72,7 @@ export default function TripPlanner() {
           confirmedStay={confirmedStay}
         />
       )}
+      {activeTab === 'memories' && <MemoriesTab defaultDestination={trip?.destination} />}
       {activeTab === 'connect' && <ConnectTab
           trip={trip}
           confirmedStay={confirmedStay}
