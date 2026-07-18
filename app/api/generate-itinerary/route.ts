@@ -47,21 +47,34 @@ function addActivityImages(items: ItineraryItem[], spots: Spot[], events: LiveEv
     });
     const event = events.find((candidate) => {
       const name = searchable(candidate.name);
-      return candidate.imageUrl && name.length > 3 && (activity.includes(name) || name.includes(activity));
+      return name.length > 3 && (activity.includes(name) || name.includes(activity));
     });
     // Claude builds from these supplied spots. If it paraphrases a name, use a
     // rotating destination photo rather than showing an empty card.
     const fallback = photographed.length ? photographed[index % photographed.length] : null;
     const picturedSpot = spot ?? fallback;
 
-    if (event?.imageUrl) {
-      return { ...item, imageUrl: event.imageUrl, imageAlt: event.name };
+    if (event) {
+      return {
+        ...item,
+        imageUrl: event.imageUrl ?? undefined,
+        imageAlt: event.name,
+        mapLocation:
+          event.lat !== null && event.lng !== null
+            ? { name: event.venue ?? event.name, lat: event.lat, lng: event.lng }
+            : null,
+      };
     }
     if (picturedSpot?.photoName) {
       return {
         ...item,
         imageUrl: `/api/place-photo?name=${encodeURIComponent(picturedSpot.photoName)}`,
         imageAlt: spot ? spot.name : `A real place near ${item.activity}`,
+        // A fallback photo is decorative; only exact source matches become map pins.
+        mapLocation:
+          spot && spot.lat !== null && spot.lng !== null
+            ? { name: spot.name, lat: spot.lat, lng: spot.lng }
+            : null,
       };
     }
     return item;

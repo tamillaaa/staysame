@@ -24,6 +24,8 @@ export type ItineraryItem = {
   /** A real Places or Ticketmaster image matched to this activity. */
   imageUrl?: string | null;
   imageAlt?: string | null;
+  /** Verified coordinates for placing this stop on the itinerary map. */
+  mapLocation?: { name: string; lat: number; lng: number } | null;
 };
 
 export type Itinerary = {
@@ -61,6 +63,8 @@ export type LiveEvent = {
   url: string | null;
   category: string | null;
   imageUrl: string | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 export type GenerateItineraryRequest = {

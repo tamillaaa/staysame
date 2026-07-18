@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { GenerateItineraryResponse, ItineraryItem } from '@/lib/types';
+import ItineraryMap from './ItineraryMap';
 
 function formatDateRange(start: string | null, end: string | null): string {
   if (!start || !end) return '';
@@ -108,6 +109,8 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
           })}
         </div>
       ))}
+
+      <ItineraryMap key={`${trip.tripId}-${trip.startDate}-${trip.destination}`} items={trip.items} />
 
       {/* TODO: wire up ElevenLabs narration + video generation for the selected
           activities. The selection UI is live; the generate button stays disabled

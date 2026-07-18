@@ -124,6 +124,7 @@ Build a day-by-day itinerary that mixes three things:
 Rules:
 - 3 to 5 items per day, ordered morning → afternoon → evening → night.
 - Every item that is not a side quest must be a real, findable place or a real event from the lists above.
+- For real places and events, use the exact supplied place or event name in the activity title so it can be pinned accurately on a map.
 - Vary the days. Do not open every morning the same way.
 - Keep descriptions concrete and short. No travel-brochure language.`;
 }

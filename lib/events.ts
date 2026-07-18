@@ -49,23 +49,35 @@ export async function fetchEvents(
           url?: string;
           dates?: { start?: { localDate?: string } };
           classifications?: Array<{ segment?: { name?: string } }>;
-          _embedded?: { venues?: Array<{ name?: string }> };
+          _embedded?: {
+            venues?: Array<{
+              name?: string;
+              location?: { latitude?: string; longitude?: string };
+            }>;
+          };
           images?: Array<{ url?: string; width?: number }>;
         }>;
       };
     };
 
     // No events in range is a normal, empty-bodied response, not an error.
-    return (body._embedded?.events ?? []).slice(0, limit).map((e) => ({
-      name: e.name ?? 'Untitled event',
-      date: e.dates?.start?.localDate ?? null,
-      venue: e._embedded?.venues?.[0]?.name ?? null,
-      url: e.url ?? null,
-      category: e.classifications?.[0]?.segment?.name ?? null,
-      imageUrl:
-        [...(e.images ?? [])]
-          .sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0]?.url ?? null,
-    }));
+    return (body._embedded?.events ?? []).slice(0, limit).map((e) => {
+      const venue = e._embedded?.venues?.[0];
+      const lat = Number(venue?.location?.latitude);
+      const lng = Number(venue?.location?.longitude);
+      return {
+        name: e.name ?? 'Untitled event',
+        date: e.dates?.start?.localDate ?? null,
+        venue: venue?.name ?? null,
+        url: e.url ?? null,
+        category: e.classifications?.[0]?.segment?.name ?? null,
+        imageUrl:
+          [...(e.images ?? [])]
+            .sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0]?.url ?? null,
+        lat: Number.isFinite(lat) ? lat : null,
+        lng: Number.isFinite(lng) ? lng : null,
+      };
+    });
   } catch (err) {
     console.warn('[ticketmaster] lookup failed:', err instanceof Error ? err.message : err);
     return [];
