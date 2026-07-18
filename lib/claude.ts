@@ -100,7 +100,7 @@ function buildPrompt(args: {
   const { destination, budgetTier, tripLengthDays, startDate, endDate, spots, events } = args;
 
   const spotsBlock = spots.length
-    ? `Top-rated real places in ${destination} (from Google Places — use these as the backbone):\n${JSON.stringify(spots, null, 2)}`
+    ? `Top-rated real attractions, restaurants, and cafés in ${destination} (from Google Places — use these as the backbone):\n${JSON.stringify(spots, null, 2)}`
     : `No verified place data was available for ${destination}. Use well-known real landmarks you are confident exist, and do not invent specific businesses, opening hours, or prices.`;
 
   const eventsBlock = events.length
@@ -125,6 +125,7 @@ Rules:
 - 3 to 5 items per day, ordered morning → afternoon → evening → night.
 - Every item that is not a side quest must be a real, findable place or a real event from the lists above.
 - For real places and events, use the exact supplied place or event name in the activity title so it can be pinned accurately on a map.
+- Include at least one real restaurant, café, market, or bakery from the supplied list per day when food places are available. Make it a proper itinerary item, not a vague meal break.
 - Vary the days. Do not open every morning the same way.
 - Keep descriptions concrete and short. No travel-brochure language.`;
 }

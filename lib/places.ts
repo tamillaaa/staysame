@@ -9,7 +9,7 @@ const PLACES_URL = 'https://places.googleapis.com/v1/places:searchText';
  * Returns an empty array when the key is missing or the call fails — a missing
  * spot list degrades the itinerary, it doesn't break it.
  */
-export async function fetchTopSpots(destination: string, limit = 12): Promise<Spot[]> {
+async function fetchSpots(query: string, limit: number): Promise<Spot[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return [];
 
@@ -31,7 +31,7 @@ export async function fetchTopSpots(destination: string, limit = 12): Promise<Sp
         ].join(','),
       },
       body: JSON.stringify({
-        textQuery: `top rated tourist attractions in ${destination}`,
+        textQuery: query,
         maxResultCount: Math.min(limit, 20),
       }),
       signal: AbortSignal.timeout(15000),
@@ -73,6 +73,15 @@ export async function fetchTopSpots(destination: string, limit = 12): Promise<Sp
     console.warn('[places] lookup failed:', err instanceof Error ? err.message : err);
     return [];
   }
+}
+
+export function fetchTopSpots(destination: string, limit = 12): Promise<Spot[]> {
+  return fetchSpots(`top rated tourist attractions in ${destination}`, limit);
+}
+
+/** Real restaurants and cafés so meal stops are useful, not model inventions. */
+export function fetchFoodSpots(destination: string, limit = 10): Promise<Spot[]> {
+  return fetchSpots(`top rated local restaurants and cafes in ${destination}`, limit);
 }
 
 /**

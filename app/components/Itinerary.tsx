@@ -110,7 +110,11 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
         </div>
       ))}
 
-      <ItineraryMap key={`${trip.tripId}-${trip.startDate}-${trip.destination}`} items={trip.items} />
+      <ItineraryMap
+        key={`${trip.tripId}-${trip.startDate}-${trip.destination}`}
+        items={trip.items.filter((_, index) => selected.has(index))}
+        center={trip.center}
+      />
 
       {/* TODO: wire up ElevenLabs narration + video generation for the selected
           activities. The selection UI is live; the generate button stays disabled

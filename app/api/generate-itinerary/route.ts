@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ApiKeyError, GenerationError, generateItinerary } from '@/lib/claude';
 import { pickDestination } from '@/lib/destinations';
 import { fetchEvents } from '@/lib/events';
-import { centroidOf, fetchTopSpots } from '@/lib/places';
+import { centroidOf, fetchFoodSpots, fetchTopSpots } from '@/lib/places';
 import { getServiceClient } from '@/lib/supabase';
 import { BUDGET_TIERS, CONTINENTS } from '@/lib/types';
 import type {
@@ -126,10 +126,14 @@ export async function POST(request: Request) {
 
   try {
     // Both lookups are independent and each degrades to [] on failure.
-    const [spots, events] = await Promise.all([
+    const [attractions, foodSpots, events] = await Promise.all([
       fetchTopSpots(destination),
+      fetchFoodSpots(destination),
       fetchEvents(destination, startDate, endDate),
     ]);
+    const spots = [...attractions, ...foodSpots].filter(
+      (spot, index, list) => list.findIndex((other) => searchable(other.name) === searchable(spot.name)) === index
+    );
 
     const itinerary = await generateItinerary({
       destination,
