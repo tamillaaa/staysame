@@ -111,6 +111,102 @@ main {
 .vibe-summary {
   font-size: 15px;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vibe-description {
+  margin: 0;
+  font-style: italic;
+  text-align: center;
+}
+
+.vibe-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vibe-tag {
+  padding: 4px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.loading-message {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.notice-message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  font-style: italic;
+}
+
+.location-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.location-prompt label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.location-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.location-row input {
+  flex: 1;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.location-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.location-row button {
+  padding: 10px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.location-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .results-section {
@@ -169,8 +265,33 @@ main {
   color: var(--text);
 }
 
+.hotel-card-match {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--accent);
+  padding-left: 10px;
+  border-left: 2px solid var(--accent-border);
+}
+
 .hotel-card-price {
   margin-top: auto;
   font-weight: 700;
   color: var(--text-h);
+}
+
+.hotel-card-book {
+  margin-top: 10px;
+  padding: 9px 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+}
+
+.hotel-card-book:hover {
+  color: #fff;
+  background: var(--accent);
 }

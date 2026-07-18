@@ -5,20 +5,69 @@ import './App.css';
 
 const API_BASE = 'http://localhost:3001';
 
+/** Read the server's { error, code } envelope, falling back to a status line. */
+async function readError(response, fallback) {
+  const body = await response.json().catch(() => null);
+  return body?.error || `${fallback} (HTTP ${response.status})`;
+}
+
 function App() {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [hotels, setHotels] = useState([]);
-  const [vibe, setVibe] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [stays, setStays] = useState([]);
+  const [destination, setDestination] = useState(null);
+  const [locationInput, setLocationInput] = useState('');
+  const [needsLocation, setNeedsLocation] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [phase, setPhase] = useState('idle'); // idle | analyzing | searching
   const [error, setError] = useState(null);
+
+  const busy = phase === 'analyzing' || phase === 'searching';
 
   const handleFileSelected = (selectedFile) => {
     setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
-    setHotels([]);
-    setVibe(null);
+    setPreviewUrl((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return URL.createObjectURL(selectedFile);
+    });
+    setAnalysis(null);
+    setStays([]);
+    setDestination(null);
+    setNeedsLocation(false);
+    setLocationInput('');
+    setNotice(null);
     setError(null);
+  };
+
+  const searchStays = async (photoAnalysis, location) => {
+    setPhase('searching');
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`${API_BASE}/api/search-stays`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...photoAnalysis, location }),
+      });
+      if (!response.ok) {
+        setError(await readError(response, 'Stay search failed'));
+        return;
+      }
+      const data = await response.json();
+      setStays(data.stays);
+      setDestination(data.destination);
+      setNotice(
+        data.relaxedPriceFilter
+          ? `Nothing matched your ${photoAnalysis.price_tier} budget there, so here are the closest options.`
+          : null
+      );
+      setNeedsLocation(false);
+    } catch {
+      setError('Could not reach the server while searching for stays. Is it running?');
+    } finally {
+      setPhase('idle');
+    }
   };
 
   const handleFindStay = async () => {
@@ -27,33 +76,50 @@ function App() {
       return;
     }
 
-    setLoading(true);
+    setPhase('analyzing');
     setError(null);
+    setStays([]);
+    setAnalysis(null);
+    setNeedsLocation(false);
+    setNotice(null);
 
+    let photoAnalysis;
     try {
       const formData = new FormData();
       formData.append('photo', file);
 
-      const analyzeRes = await fetch(`${API_BASE}/api/analyze-photo`, {
+      const response = await fetch(`${API_BASE}/api/analyze-photo`, {
         method: 'POST',
         body: formData,
       });
-      const analysis = await analyzeRes.json();
-      setVibe(analysis);
-
-      const staysRes = await fetch(`${API_BASE}/api/search-stays`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(analysis),
-      });
-      const stays = await staysRes.json();
-      setHotels(stays);
+      if (!response.ok) {
+        setError(await readError(response, 'Photo analysis failed'));
+        setPhase('idle');
+        return;
+      }
+      photoAnalysis = await response.json();
+      setAnalysis(photoAnalysis);
     } catch {
-      setError('Something went wrong while finding your stay. Is the server running?');
-    } finally {
-      setLoading(false);
+      setError('Could not reach the server while analyzing your photo. Is it running?');
+      setPhase('idle');
+      return;
     }
+
+    // Gemini could not place the photo — ask the traveler before searching.
+    if (!photoAnalysis.destination_guess) {
+      setNeedsLocation(true);
+      setPhase('idle');
+      return;
+    }
+    await searchStays(photoAnalysis, null);
   };
+
+  const handleLocationSubmit = (e) => {
+    e.preventDefault();
+    if (locationInput.trim()) searchStays(analysis, locationInput.trim());
+  };
+
+  const tags = analysis ? [analysis.vibe, ...analysis.amenities] : [];
 
   return (
     <div className="page">
@@ -69,25 +135,66 @@ function App() {
             type="button"
             className="find-stay-button"
             onClick={handleFindStay}
-            disabled={loading}
+            disabled={busy}
           >
-            {loading ? 'Finding your stay...' : 'Find my stay'}
+            {phase === 'analyzing'
+              ? 'Reading your photo...'
+              : phase === 'searching'
+                ? 'Finding your stay...'
+                : 'Find my stay'}
           </button>
-          {error && <p className="error-message">{error}</p>}
-          {vibe && (
-            <p className="vibe-summary">
-              Detected vibe: <strong>{vibe.vibe}</strong> &middot; amenities:{' '}
-              {vibe.amenities.join(', ')}
+
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
             </p>
+          )}
+
+          {analysis && (
+            <div className="vibe-summary">
+              <p className="vibe-description">{analysis.description}</p>
+              <ul className="vibe-tags">
+                {tags.map((tag) => (
+                  <li key={tag} className="vibe-tag">
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {needsLocation && (
+            <form className="location-prompt" onSubmit={handleLocationSubmit}>
+              <label htmlFor="location">Where are you thinking of going?</label>
+              <div className="location-row">
+                <input
+                  id="location"
+                  type="text"
+                  value={locationInput}
+                  placeholder="e.g. Lisbon, Portugal"
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  disabled={busy}
+                  autoFocus
+                />
+                <button type="submit" disabled={busy || !locationInput.trim()}>
+                  Search
+                </button>
+              </div>
+            </form>
+          )}
+
+          {phase === 'searching' && (
+            <p className="loading-message">Searching real stays that match your vibe...</p>
           )}
         </section>
 
-        {hotels.length > 0 && (
+        {stays.length > 0 && (
           <section className="results-section">
-            <h2>Matched stays</h2>
+            <h2>Matched stays{destination ? ` in ${destination}` : ''}</h2>
+            {notice && <p className="notice-message">{notice}</p>}
             <div className="hotel-grid">
-              {hotels.map((hotel) => (
-                <HotelCard key={hotel.name} hotel={hotel} />
+              {stays.map((hotel) => (
+                <HotelCard key={hotel.bookingUrl ?? hotel.name} hotel={hotel} />
               ))}
             </div>
           </section>
