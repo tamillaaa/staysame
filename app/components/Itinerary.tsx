@@ -77,13 +77,24 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
             flatIndex += 1;
             const index = flatIndex;
             return (
-              <div className="item" key={`${day}-${item.time_block}-${item.activity}`}>
+              <div
+                className={item.imageUrl ? 'item item-with-photo' : 'item'}
+                key={`${day}-${item.time_block}-${item.activity}`}
+              >
                 <input
                   type="checkbox"
                   checked={selected.has(index)}
                   onChange={() => toggle(index)}
                   aria-label={`Select ${item.activity} for narration`}
                 />
+                {item.imageUrl && (
+                  <img
+                    className="item-photo"
+                    src={item.imageUrl}
+                    alt={item.imageAlt ?? item.activity}
+                    loading="lazy"
+                  />
+                )}
                 <div className="item-body">
                   <div className="item-head">
                     <span className="block">{item.time_block}</span>

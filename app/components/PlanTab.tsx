@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Itinerary from './Itinerary';
 import HotelPicks from './HotelPicks';
 import { BUDGET_TIERS, CONTINENTS } from '@/lib/types';
@@ -24,6 +24,8 @@ const BUDGET_LABELS: Record<BudgetTier, string> = {
   mid: 'Mid-range',
   splurge: 'Splurge',
 };
+
+type CitySuggestion = { id: string; label: string };
 
 function defaultStartDate(): string {
   const date = new Date();
@@ -53,6 +55,36 @@ export default function PlanTab({
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [citySuggestions, setCitySuggestions] = useState<CitySuggestion[]>([]);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [activeCity, setActiveCity] = useState(-1);
+
+  useEffect(() => {
+    if (mode !== 'destination' || destination.trim().length < 2 || !showCitySuggestions) {
+      setCitySuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/city-search?q=${encodeURIComponent(destination.trim())}`, {
+          signal: controller.signal,
+        });
+        const data = (await response.json()) as { cities?: CitySuggestion[] };
+        setCitySuggestions(response.ok ? data.cities ?? [] : []);
+        setActiveCity(-1);
+      } catch {
+        if (!controller.signal.aborted) setCitySuggestions([]);
+      }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [destination, mode, showCitySuggestions]);
+
+  function chooseCity(city: CitySuggestion) {
+    onDestinationChange(city.label);
+    setShowCitySuggestions(false);
+    setCitySuggestions([]);
+  }
 
   const canSubmit = mode !== 'destination' || destination.trim().length > 0;
 
@@ -115,14 +147,46 @@ export default function PlanTab({
         {mode === 'destination' && (
           <div className="field">
             <label htmlFor="destination">Destination</label>
-            <input
-              id="destination"
-              type="text"
-              value={destination}
-              placeholder="Lisbon, Portugal"
-              onChange={(e) => onDestinationChange(e.target.value)}
-              disabled={loading}
-            />
+            <div className="destination-search">
+              <input
+                id="destination"
+                type="text"
+                value={destination}
+                placeholder="Start typing a city..."
+                autoComplete="off"
+                aria-autocomplete="list"
+                aria-controls="city-suggestions"
+                aria-expanded={showCitySuggestions && citySuggestions.length > 0}
+                onFocus={() => setShowCitySuggestions(true)}
+                onBlur={() => window.setTimeout(() => setShowCitySuggestions(false), 120)}
+                onChange={(e) => { onDestinationChange(e.target.value); setShowCitySuggestions(true); }}
+                onKeyDown={(e) => {
+                  if (!citySuggestions.length) return;
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setActiveCity((i) => Math.min(i + 1, citySuggestions.length - 1)); }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setActiveCity((i) => Math.max(i - 1, 0)); }
+                  if (e.key === 'Enter' && activeCity >= 0) { e.preventDefault(); chooseCity(citySuggestions[activeCity]); }
+                  if (e.key === 'Escape') setShowCitySuggestions(false);
+                }}
+                disabled={loading}
+              />
+              {showCitySuggestions && citySuggestions.length > 0 && (
+                <div className="city-suggestions" id="city-suggestions" role="listbox">
+                  {citySuggestions.map((city, index) => (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={activeCity === index}
+                      className="city-option"
+                      key={city.id}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => chooseCity(city)}
+                    >
+                      <span>↗</span>{city.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

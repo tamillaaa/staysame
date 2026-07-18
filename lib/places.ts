@@ -27,6 +27,7 @@ export async function fetchTopSpots(destination: string, limit = 12): Promise<Sp
           'places.userRatingCount',
           'places.types',
           'places.location',
+          'places.photos',
         ].join(','),
       },
       body: JSON.stringify({
@@ -49,6 +50,7 @@ export async function fetchTopSpots(destination: string, limit = 12): Promise<Sp
         userRatingCount?: number;
         types?: string[];
         location?: { latitude?: number; longitude?: number };
+        photos?: Array<{ name?: string }>;
       }>;
     };
 
@@ -61,6 +63,7 @@ export async function fetchTopSpots(destination: string, limit = 12): Promise<Sp
         types: p.types ?? [],
         lat: p.location?.latitude ?? null,
         lng: p.location?.longitude ?? null,
+        photoName: p.photos?.[0]?.name ?? null,
       }))
       .filter((s) => s.name !== 'Unnamed place')
       // Highest-rated first, so the model sees the best options at the top.

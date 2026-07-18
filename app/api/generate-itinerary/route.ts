@@ -10,6 +10,9 @@ import type {
   Continent,
   GenerateItineraryRequest,
   GenerateItineraryResponse,
+  ItineraryItem,
+  LiveEvent,
+  Spot,
 } from '@/lib/types';
 
 const MAX_TRIP_DAYS = 14;
@@ -26,6 +29,43 @@ function todayIso(): string {
 
 function bad(error: string, code: string) {
   return NextResponse.json({ error, code }, { status: 400 });
+}
+
+function searchable(value: string): string {
+  return value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Match generated activities back to the real sources that grounded them. */
+function addActivityImages(items: ItineraryItem[], spots: Spot[], events: LiveEvent[]): ItineraryItem[] {
+  const photographed = spots.filter((spot) => spot.photoName);
+
+  return items.map((item, index) => {
+    const activity = searchable(item.activity);
+    const spot = photographed.find((candidate) => {
+      const name = searchable(candidate.name);
+      return name.length > 3 && (activity.includes(name) || name.includes(activity));
+    });
+    const event = events.find((candidate) => {
+      const name = searchable(candidate.name);
+      return candidate.imageUrl && name.length > 3 && (activity.includes(name) || name.includes(activity));
+    });
+    // Claude builds from these supplied spots. If it paraphrases a name, use a
+    // rotating destination photo rather than showing an empty card.
+    const fallback = photographed.length ? photographed[index % photographed.length] : null;
+    const picturedSpot = spot ?? fallback;
+
+    if (event?.imageUrl) {
+      return { ...item, imageUrl: event.imageUrl, imageAlt: event.name };
+    }
+    if (picturedSpot?.photoName) {
+      return {
+        ...item,
+        imageUrl: `/api/place-photo?name=${encodeURIComponent(picturedSpot.photoName)}`,
+        imageAlt: spot ? spot.name : `A real place near ${item.activity}`,
+      };
+    }
+    return item;
+  });
 }
 
 export async function POST(request: Request) {
@@ -116,7 +156,7 @@ export async function POST(request: Request) {
       startDate,
       endDate,
       budgetTier: budget_tier as BudgetTier,
-      items: itinerary.items,
+      items: addActivityImages(itinerary.items, spots, events),
       sources: {
         spots: spots.length,
         events: events.length,

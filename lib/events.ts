@@ -50,6 +50,7 @@ export async function fetchEvents(
           dates?: { start?: { localDate?: string } };
           classifications?: Array<{ segment?: { name?: string } }>;
           _embedded?: { venues?: Array<{ name?: string }> };
+          images?: Array<{ url?: string; width?: number }>;
         }>;
       };
     };
@@ -61,6 +62,9 @@ export async function fetchEvents(
       venue: e._embedded?.venues?.[0]?.name ?? null,
       url: e.url ?? null,
       category: e.classifications?.[0]?.segment?.name ?? null,
+      imageUrl:
+        [...(e.images ?? [])]
+          .sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0]?.url ?? null,
     }));
   } catch (err) {
     console.warn('[ticketmaster] lookup failed:', err instanceof Error ? err.message : err);

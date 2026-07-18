@@ -21,6 +21,9 @@ export type ItineraryItem = {
   activity: string;
   is_side_quest: boolean;
   description: string;
+  /** A real Places or Ticketmaster image matched to this activity. */
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 };
 
 export type Itinerary = {
@@ -38,6 +41,7 @@ export type Spot = {
   types: string[];
   lat: number | null;
   lng: number | null;
+  photoName: string | null;
 };
 
 /** Map centre used to anchor the hotel search, sized to the spots' spread. */
@@ -56,6 +60,7 @@ export type LiveEvent = {
   venue: string | null;
   url: string | null;
   category: string | null;
+  imageUrl: string | null;
 };
 
 export type GenerateItineraryRequest = {
