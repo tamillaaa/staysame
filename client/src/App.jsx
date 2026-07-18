@@ -11,19 +11,27 @@ async function readError(response, fallback) {
   return body?.error || `${fallback} (HTTP ${response.status})`;
 }
 
+/** "Cancun, Mexico", "Phuket, Thailand" -> "Cancun, Phuket & Mallorca" */
+function formatDestinations(destinations) {
+  const names = destinations.map((d) => d.split(',')[0].trim());
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+}
+
 function App() {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [stays, setStays] = useState([]);
-  const [destination, setDestination] = useState(null);
-  const [locationInput, setLocationInput] = useState('');
-  const [needsLocation, setNeedsLocation] = useState(false);
-  const [notice, setNotice] = useState(null);
+  const [heading, setHeading] = useState(null);
+  const [destinationInput, setDestinationInput] = useState('');
+  const [anywhere, setAnywhere] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | analyzing | searching
+  const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
 
   const busy = phase === 'analyzing' || phase === 'searching';
+  const canSearch = anywhere || destinationInput.trim().length > 0;
 
   const handleFileSelected = (selectedFile) => {
     setFile(selectedFile);
@@ -33,37 +41,48 @@ function App() {
     });
     setAnalysis(null);
     setStays([]);
-    setDestination(null);
-    setNeedsLocation(false);
-    setLocationInput('');
+    setHeading(null);
+    setDestinationInput('');
+    setAnywhere(false);
     setNotice(null);
     setError(null);
   };
 
-  const searchStays = async (photoAnalysis, location) => {
+  const runSearch = async (photoAnalysis, { location, searchAnywhere }) => {
     setPhase('searching');
     setError(null);
     setNotice(null);
+
     try {
       const response = await fetch(`${API_BASE}/api/search-stays`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...photoAnalysis, location }),
+        body: JSON.stringify({
+          ...photoAnalysis,
+          location: searchAnywhere ? null : location,
+          anywhere: searchAnywhere,
+        }),
       });
       if (!response.ok) {
+        setStays([]);
         setError(await readError(response, 'Stay search failed'));
         return;
       }
+
       const data = await response.json();
       setStays(data.stays);
-      setDestination(data.destination);
+      setHeading(
+        data.destinations?.length > 1
+          ? `Matched stays across ${formatDestinations(data.destinations)}`
+          : `Matched stays in ${data.destination}`
+      );
       setNotice(
         data.relaxedPriceFilter
           ? `Nothing matched your ${photoAnalysis.price_tier} budget there, so here are the closest options.`
           : null
       );
-      setNeedsLocation(false);
     } catch {
+      setStays([]);
       setError('Could not reach the server while searching for stays. Is it running?');
     } finally {
       setPhase('idle');
@@ -78,10 +97,10 @@ function App() {
 
     setPhase('analyzing');
     setError(null);
+    setNotice(null);
     setStays([]);
     setAnalysis(null);
-    setNeedsLocation(false);
-    setNotice(null);
+    setHeading(null);
 
     let photoAnalysis;
     try {
@@ -105,18 +124,24 @@ function App() {
       return;
     }
 
-    // Gemini could not place the photo — ask the traveler before searching.
-    if (!photoAnalysis.destination_guess) {
-      setNeedsLocation(true);
+    // Pre-fill the destination with Gemini's guess so it can be corrected, and
+    // search it straight away. Without a guess, wait for the traveler to choose.
+    const guess = photoAnalysis.destination_guess ?? '';
+    setDestinationInput(guess);
+    setAnywhere(false);
+
+    if (guess) {
+      await runSearch(photoAnalysis, { location: guess, searchAnywhere: false });
+    } else {
       setPhase('idle');
-      return;
+      setNotice("We couldn't tell where this photo was taken — pick a place, or search anywhere.");
     }
-    await searchStays(photoAnalysis, null);
   };
 
-  const handleLocationSubmit = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (locationInput.trim()) searchStays(analysis, locationInput.trim());
+    if (!analysis || !canSearch) return;
+    runSearch(analysis, { location: destinationInput.trim(), searchAnywhere: anywhere });
   };
 
   const tags = analysis ? [analysis.vibe, ...analysis.amenities] : [];
@@ -163,35 +188,64 @@ function App() {
             </div>
           )}
 
-          {needsLocation && (
-            <form className="location-prompt" onSubmit={handleLocationSubmit}>
-              <label htmlFor="location">Where are you thinking of going?</label>
-              <div className="location-row">
-                <input
-                  id="location"
-                  type="text"
-                  value={locationInput}
-                  placeholder="e.g. Lisbon, Portugal"
-                  onChange={(e) => setLocationInput(e.target.value)}
+          {analysis && (
+            <form className="destination-picker" onSubmit={handleSearchSubmit}>
+              <span className="destination-label">Where to?</span>
+
+              <div className="destination-modes">
+                <button
+                  type="button"
+                  className={`mode-button ${anywhere ? '' : 'active'}`}
+                  onClick={() => setAnywhere(false)}
                   disabled={busy}
-                  autoFocus
-                />
-                <button type="submit" disabled={busy || !locationInput.trim()}>
-                  Search
+                >
+                  A specific place
+                </button>
+                <button
+                  type="button"
+                  className={`mode-button ${anywhere ? 'active' : ''}`}
+                  onClick={() => setAnywhere(true)}
+                  disabled={busy}
+                >
+                  Anywhere
                 </button>
               </div>
+
+              {anywhere ? (
+                <p className="destination-hint">
+                  We&apos;ll pick destinations around the world that match your photo&apos;s vibe.
+                </p>
+              ) : (
+                <input
+                  className="destination-input"
+                  type="text"
+                  value={destinationInput}
+                  placeholder="City, region or country — e.g. Lisbon, Portugal"
+                  onChange={(e) => setDestinationInput(e.target.value)}
+                  disabled={busy}
+                />
+              )}
+
+              <button type="submit" className="destination-submit" disabled={busy || !canSearch}>
+                {phase === 'searching' ? 'Searching...' : 'Search stays'}
+              </button>
             </form>
           )}
 
+          {notice && <p className="notice-message">{notice}</p>}
+
           {phase === 'searching' && (
-            <p className="loading-message">Searching real stays that match your vibe...</p>
+            <p className="loading-message">
+              {anywhere
+                ? 'Scouting destinations that match your vibe...'
+                : 'Searching real stays that match your vibe...'}
+            </p>
           )}
         </section>
 
         {stays.length > 0 && (
           <section className="results-section">
-            <h2>Matched stays{destination ? ` in ${destination}` : ''}</h2>
-            {notice && <p className="notice-message">{notice}</p>}
+            <h2>{heading}</h2>
             <div className="hotel-grid">
               {stays.map((hotel) => (
                 <HotelCard key={hotel.bookingUrl ?? hotel.name} hotel={hotel} />

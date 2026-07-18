@@ -114,7 +114,64 @@ export async function searchStays({ analysis, location, checkin, checkout, limit
     err.code = 'MISSING_DESTINATION';
     throw err;
   }
+  return searchOne({ analysis, destination, checkin, checkout, limit });
+}
 
+/**
+ * "Anywhere" mode: search several vibe-matched destinations at once and
+ * interleave them, so the first screenful spans places rather than showing
+ * one city's inventory before reaching the next.
+ *
+ * Individual destinations are allowed to fail — a geocoding miss or rate limit
+ * on one shouldn't sink the whole search. Only an all-empty result is an error.
+ */
+export async function searchAnywhere({ analysis, destinations, checkin, checkout, limit = 9 }) {
+  // Over-fetch per destination so interleaving still fills `limit` when one
+  // destination returns fewer results than its share.
+  const perDestination = Math.max(2, Math.ceil(limit / destinations.length) + 1);
+
+  const settled = await Promise.allSettled(
+    destinations.map((destination) =>
+      searchOne({ analysis, destination, checkin, checkout, limit: perDestination })
+    )
+  );
+
+  const successes = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
+  for (const failure of settled.filter((s) => s.status === 'rejected')) {
+    console.warn('[stay22] anywhere: one destination failed:', failure.reason?.message);
+  }
+
+  if (!successes.length) {
+    const err = new Error('Could not search any destinations right now. Please try again.');
+    err.status = 502;
+    err.code = 'ANYWHERE_ALL_FAILED';
+    throw err;
+  }
+
+  // Round-robin so results alternate between destinations.
+  const queues = successes.map((s) => [...s.listings]);
+  const listings = [];
+  while (listings.length < limit && queues.some((q) => q.length)) {
+    for (const queue of queues) {
+      if (!queue.length) continue;
+      listings.push(queue.shift());
+      if (listings.length === limit) break;
+    }
+  }
+
+  const dates = successes[0];
+  return {
+    listings,
+    destination: successes.map((s) => s.destination).join(' · '),
+    destinations: successes.map((s) => s.destination),
+    checkin: dates.checkin,
+    checkout: dates.checkout,
+    nights: dates.nights,
+    relaxedPriceFilter: successes.some((s) => s.relaxedPriceFilter),
+  };
+}
+
+async function searchOne({ analysis, destination, checkin, checkout, limit }) {
   const dates = checkin && checkout ? { checkin, checkout } : defaultDates();
   const tier = PRICE_TIERS[analysis.price_tier] ?? {};
   const vibe = VIBE_FILTERS[analysis.vibe] ?? {};

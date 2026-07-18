@@ -69,8 +69,14 @@ The app opens on [http://localhost:5173](http://localhost:5173).
 
 Upload or drag in an inspiration photo and click "Find my stay." The app
 analyzes the photo, shows the detected vibe and amenities as tags, then
-searches for real stays and renders the matching hotel cards. If Gemini can't
-tell where the photo was taken, it asks you where you're going first.
+searches for real stays and renders the matching hotel cards.
+
+The destination picker under the tags lets you steer the search:
+
+- **A specific place** — pre-filled with Gemini's guess and fully editable.
+  Accepts a city, a region ("Amalfi Coast, Italy") or a country ("Portugal").
+- **Anywhere** — Gemini picks three destinations matching the photo's vibe and
+  the results are interleaved across all of them.
 
 ## API endpoints
 
@@ -99,10 +105,16 @@ returning an error.
 
 ### `POST /api/search-stays`
 
-Accepts the analysis above plus an optional `location` (used when
-`destination_guess` is `null`) and optional `checkin`/`checkout` dates.
+Accepts the analysis above plus:
 
-Returns `{ destination, checkin, checkout, nights, stays }`, where each stay is:
+| Field | Notes |
+| --- | --- |
+| `location` | Where to search — a city, region or country. Falls back to `destination_guess` when omitted. |
+| `anywhere` | When `true`, `location` is ignored: Gemini picks three vibe-matched destinations and the server searches all of them, interleaving the results. |
+| `checkin` / `checkout` | Optional `YYYY-MM-DD`. Defaults to a 3-night window 30 days out. |
+
+Returns `{ destination, checkin, checkout, nights, stays }` — plus
+`destinations` (the array of places searched) in `anywhere` mode. Each stay is:
 
 ```json
 {
@@ -130,10 +142,19 @@ Returns `{ destination, checkin, checkout, nights, stays }`, where each stay is:
 - **`gemini-2.5-flash` is retired.** It returns `404 — no longer available to
   new users`. The server pins `gemini-3.5-flash` instead; override with
   `GEMINI_MODEL`.
-- **Gemini almost always guesses a destination.** It returned "Kyoto, Japan"
-  for a featureless colour gradient. The "Where are you thinking of going?"
-  prompt is wired up and works, but in practice `destination_guess` is rarely
-  `null`, so users seldom see it.
+- **Gemini almost always guesses a destination** — it returned "Kyoto, Japan"
+  for a featureless colour gradient. Because the guess is confident but often
+  wrong, the destination picker is always visible and pre-filled with it rather
+  than only appearing when the guess is `null`.
+- **Broad regions geocode badly on Stay22.** "Southeast Asia" matched a village
+  in Czechia and "Caribbean" returned a single result in Haiti. Cities,
+  countries and named regions ("Amalfi Coast, Italy", "Tuscany") all resolve
+  correctly, so the "Anywhere" prompt requires specific `Place, Country` names
+  and rejects vague answers. Free-text entry is not restricted — a user who
+  types a continent will get whatever Stay22 geocodes it to.
+- **"Anywhere" tolerates partial failure.** The three destination searches run
+  in parallel via `Promise.allSettled`; if one geocodes badly or rate-limits,
+  the others still return. Only an all-failed result raises an error.
 - **Match captions degrade gracefully.** They come from a second batched Gemini
   call; if it fails or is rate-limited, the server falls back to a rule-based
   caption built from star rating and guest score rather than failing the search.

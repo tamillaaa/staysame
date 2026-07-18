@@ -2,8 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { analyzePhoto, generateMatchCaptions } from './lib/gemini.js';
-import { searchStays } from './lib/stay22.js';
+import { analyzePhoto, generateMatchCaptions, suggestDestinations } from './lib/gemini.js';
+import { searchStays, searchAnywhere } from './lib/stay22.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -77,8 +77,17 @@ app.post('/api/analyze-photo', upload.single('photo'), async (req, res) => {
  */
 app.post('/api/search-stays', async (req, res) => {
   try {
-    const { vibe, amenities, destination_guess, price_tier, description, location, checkin, checkout } =
-      req.body ?? {};
+    const {
+      vibe,
+      amenities,
+      destination_guess,
+      price_tier,
+      description,
+      location,
+      anywhere,
+      checkin,
+      checkout,
+    } = req.body ?? {};
 
     if (!vibe || !price_tier) {
       return res.status(400).json({
@@ -95,16 +104,22 @@ app.post('/api/search-stays', async (req, res) => {
       description: description ?? '',
     };
 
-    const { listings, destination, ...window } = await searchStays({
-      analysis,
-      location,
-      checkin,
-      checkout,
-    });
+    // "Anywhere": let Gemini choose vibe-matched destinations, then search them
+    // all. Otherwise search the user's chosen place, falling back to the guess.
+    const { listings, destination, ...window } = anywhere
+      ? await searchAnywhere({
+          analysis,
+          destinations: await suggestDestinations({ analysis }),
+          checkin,
+          checkout,
+        })
+      : await searchStays({ analysis, location, checkin, checkout });
 
     if (!listings.length) {
       return res.status(404).json({
-        error: `No stays found in ${destination} for those criteria. Try a different city.`,
+        error: anywhere
+          ? 'No stays found for that vibe right now. Try a specific destination instead.'
+          : `No stays found in ${destination} for those criteria. Try a different place.`,
         code: 'NO_RESULTS',
       });
     }
