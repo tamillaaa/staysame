@@ -36,7 +36,12 @@ export type Spot = {
   rating: number | null;
   ratingCount: number | null;
   types: string[];
+  lat: number | null;
+  lng: number | null;
 };
+
+/** Map centre used to anchor the hotel search, sized to the spots' spread. */
+export type GeoPoint = { lat: number; lng: number; radiusMeters?: number };
 
 /** A real event from Ticketmaster, fed to Claude as grounding. */
 export type LiveEvent = {
@@ -73,6 +78,58 @@ export type GenerateItineraryResponse = {
     ticketmasterConfigured: boolean;
   };
   persisted: boolean;
+  /** Centre of the itinerary's spots; anchors the hotel search. */
+  center: GeoPoint | null;
 };
 
 export type ApiError = { error: string; code: string };
+
+/** A stay the traveler can book, as sent to the browser (no `raw` payload). */
+export type HotelPickPublic = {
+  id: string;
+  name: string;
+  location: string;
+  provider: string | null;
+  pricePerNight: number | null;
+  priceLabel: string;
+  imageUrl: string | null;
+  allezDeeplink: string | null;
+  stars: number | null;
+  guestRating: number | null;
+  reviewCount: number | null;
+  freeCancellation: boolean;
+  description: string;
+};
+
+export type HotelMatchesRequest = {
+  destination: string;
+  checkin: string;
+  checkout: string;
+  budget_tier: BudgetTier;
+  /** Optional: links the saved picks to a trip row. */
+  trip_id?: string | null;
+  /** Optional: search around this point instead of geocoding the destination. */
+  center?: GeoPoint | null;
+};
+
+export type HotelMatchesResponse = {
+  destination: string;
+  checkin: string;
+  checkout: string;
+  nights: number;
+  /** True when the budget band matched nothing and was dropped. */
+  relaxedPriceFilter: boolean;
+  /** False when STAY22_AID is unset — bookings won't attribute to you. */
+  affiliateConfigured: boolean;
+  persisted: boolean;
+  /** True when the search was anchored on the itinerary's spots. */
+  centeredOnItinerary: boolean;
+  picks: HotelPickPublic[];
+};
+
+/** The stay a traveler confirmed, which unlocks the Connect tab. */
+export type ConfirmedStay = {
+  hotelName: string;
+  checkIn: string;
+  checkOut: string;
+};

@@ -8,9 +8,10 @@ that mixes top-rated real places, real ticketed events, and a couple of playful
 Built with Next.js (App Router), Supabase, Claude (itinerary generation), Gemini
 (image-to-destination), and Stay22 (hotels).
 
-> **Status:** this branch contains the foundation plus the itinerary generator.
-> The "From a photo" and "Connect" tabs are scaffolded with empty states; the
-> hotel-matching and traveler-connector features are not built yet.
+> **Status:** this branch contains the foundation, the itinerary generator, and
+> Stay22 hotel matching. The "From a photo" tab is scaffolded with an empty
+> state, and the traveler connector is unlocked by confirming a stay but its QR
+> code and matching still need auth.
 
 ## Repository layout
 
@@ -38,7 +39,9 @@ Then fill in `.env.local`:
 | `GOOGLE_PLACES_API_KEY` | Real places | Optional. Without it the itinerary is built from the model's own knowledge, and the UI says so. |
 | `TICKETMASTER_API_KEY` | Real events | Optional, same degradation. |
 | `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Saving trips | Optional. Without them itineraries generate but aren't persisted. |
-| `GEMINI_API_KEY`, `STAY22_API_KEY`, `STAY22_AID` | Photo and hotel tabs | Not used yet on this branch. |
+| `STAY22_API_KEY` | Hotel matching | Optional. Without it Stay22 runs in demo mode, capped at 5 requests/minute. |
+| `STAY22_AID` | Booking attribution | Optional. Without it bookings are not attributed to your affiliate account, and the UI says so. |
+| `GEMINI_API_KEY` | Photo tab | Not used yet on this branch. |
 | `ELEVENLABS_API_KEY` | Narration | Stretch goal, not wired up. |
 
 Apply the database schema with the Supabase CLI:
@@ -86,6 +89,23 @@ the date range (Ticketmaster), feeds both to Claude, and saves the result to
 `trips`. Returns the itinerary plus a `sources` block reporting what actually
 grounded it.
 
+### `POST /api/hotel-matches`
+
+```json
+{
+  "destination": "Lisbon, Portugal",
+  "checkin": "2026-09-10",
+  "checkout": "2026-09-12",
+  "budget_tier": "mid",
+  "trip_id": "uuid-or-null",
+  "center": { "lat": 38.7134, "lng": -9.1455, "radiusMeters": 6000 }
+}
+```
+
+Searches Stay22 for stays, returns the top 5 with Allez booking deeplinks, and
+saves them to `hotel_picks` against the trip. Renders inline beneath the
+itinerary; marking one as yours unlocks the Connect tab.
+
 ## Implementation notes
 
 - **Structured outputs, not prompt-and-parse.** The itinerary comes back through
@@ -98,8 +118,29 @@ grounded it.
 - **Persistence is optional.** With Supabase unconfigured the trip generates and
   renders but isn't saved, and the UI says so rather than silently dropping it.
 - **`surprise_me` uses a curated pool**, not a model call — the surprise is
-  instant and every entry is a specific, geocodable city grouped by budget, so a
-  shoestring surprise doesn't land in Zurich.
+  instant, and entries are grouped by budget so a shoestring surprise doesn't
+  land in Zurich. Most entries are cities, but a few splurge picks are regions
+  or small countries ("Seychelles", "Patagonia, Chile"); those rely on the
+  hotel search's address fallback, since their attractions are too scattered
+  for a radius search around one centroid.
+- **Hotels are anchored on the itinerary, not the city name.** Stay22's
+  `address` geocoder is unreliable at city level: "Lisbon", "Baixa, Lisbon" and
+  "Alfama, Lisbon" all resolve to the *same* point 5.5km northeast of the
+  centre, putting every result in Parque das Nações while the itinerary was in
+  Alfama and Chiado. The hotel search therefore uses the centroid of the trip's
+  own Google Places spots, with a radius sized to how far those spots scatter
+  (4–40km). Destinations with no inventory near that centroid — an island
+  nation like the Seychelles — fall back to the address search.
+- **Listings are de-duplicated by street.** Operators list a whole building as
+  separate units, so a raw top-5 for Lisbon returned five "… by Innkeeper"
+  apartments in one complex, and later three units of a single Rua da Rosa
+  address. Note the street key strips `º`/`ª` explicitly: they are Unicode
+  *letters*, so a `\p{L}` filter alone leaves `"rua da rosa º"` unequal to
+  `"rua da rosa"`.
+- **Hotel ranking is confidence-weighted.** Sorting on the raw guest rating
+  surfaced novelty stays with perfect scores from a handful of reviews — one
+  Lisbon mid-tier list came back as five boats. Scores now shrink toward the
+  prior mean by review count, so a 9.2 from 400 reviews outranks a 10 from 3.
 - **TypeScript is pinned to 5.x.** TypeScript 7 crashes the Next 16 build worker
   (`The "id" argument must be of type string`).
 
@@ -237,6 +278,23 @@ they were derived from, or `null`). Each stay is:
   "matchReason": "Cliffside suites echo the terraced whites in your photo."
 }
 ```
+
+### `POST /api/hotel-matches`
+
+```json
+{
+  "destination": "Lisbon, Portugal",
+  "checkin": "2026-09-10",
+  "checkout": "2026-09-12",
+  "budget_tier": "mid",
+  "trip_id": "uuid-or-null",
+  "center": { "lat": 38.7134, "lng": -9.1455, "radiusMeters": 6000 }
+}
+```
+
+Searches Stay22 for stays, returns the top 5 with Allez booking deeplinks, and
+saves them to `hotel_picks` against the trip. Renders inline beneath the
+itinerary; marking one as yours unlocks the Connect tab.
 
 ## Implementation notes
 

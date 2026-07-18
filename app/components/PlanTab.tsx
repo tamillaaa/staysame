@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import Itinerary from './Itinerary';
+import HotelPicks from './HotelPicks';
 import { BUDGET_TIERS, CONTINENTS } from '@/lib/types';
-import type { BudgetTier, Continent, GenerateItineraryResponse } from '@/lib/types';
+import type {
+  BudgetTier,
+  ConfirmedStay,
+  Continent,
+  GenerateItineraryResponse,
+} from '@/lib/types';
 
 type Mode = 'destination' | 'surprise_me' | 'continent';
 
@@ -30,11 +36,15 @@ export default function PlanTab({
   onDestinationChange,
   trip,
   onTripGenerated,
+  confirmedStay,
+  onConfirmStay,
 }: {
   destination: string;
   onDestinationChange: (value: string) => void;
   trip: GenerateItineraryResponse | null;
   onTripGenerated: (trip: GenerateItineraryResponse) => void;
+  confirmedStay: ConfirmedStay | null;
+  onConfirmStay: (stay: ConfirmedStay | null) => void;
 }) {
   const [mode, setMode] = useState<Mode>('destination');
   const [continent, setContinent] = useState<Continent>('Europe');
@@ -197,7 +207,16 @@ export default function PlanTab({
         </p>
       )}
 
-      {trip && !loading && <Itinerary trip={trip} />}
+      {trip && !loading && (
+        <>
+          <Itinerary trip={trip} />
+          <HotelPicks
+            trip={trip}
+            confirmedStay={confirmedStay}
+            onConfirmStay={onConfirmStay}
+          />
+        </>
+      )}
     </>
   );
 }

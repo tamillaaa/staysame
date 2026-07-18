@@ -6,7 +6,7 @@ import Tabs, { isTabId, type TabId } from './Tabs';
 import PlanTab from './PlanTab';
 import PhotoTab from './PhotoTab';
 import ConnectTab from './ConnectTab';
-import type { GenerateItineraryResponse } from '@/lib/types';
+import type { ConfirmedStay, GenerateItineraryResponse } from '@/lib/types';
 
 export default function TripPlanner() {
   const router = useRouter();
@@ -20,6 +20,14 @@ export default function TripPlanner() {
   // generated trip can unlock the connect tab.
   const [destination, setDestination] = useState('');
   const [trip, setTrip] = useState<GenerateItineraryResponse | null>(null);
+  // Confirming a stay is what unlocks the Connect tab.
+  const [confirmedStay, setConfirmedStay] = useState<ConfirmedStay | null>(null);
+
+  // A new itinerary invalidates the stay picked for the previous one.
+  const handleTripGenerated = useCallback((next: GenerateItineraryResponse) => {
+    setTrip(next);
+    setConfirmedStay(null);
+  }, []);
 
   // Tab lives in the URL so a tab is linkable; replace() keeps it out of history
   // and does not reload the page.
@@ -51,11 +59,17 @@ export default function TripPlanner() {
           destination={destination}
           onDestinationChange={setDestination}
           trip={trip}
-          onTripGenerated={setTrip}
+          onTripGenerated={handleTripGenerated}
+          confirmedStay={confirmedStay}
+          onConfirmStay={setConfirmedStay}
         />
       )}
       {activeTab === 'photo' && <PhotoTab onDestinationPicked={handleDestinationPicked} />}
-      {activeTab === 'connect' && <ConnectTab trip={trip} onGoToPlan={() => selectTab('plan')} />}
+      {activeTab === 'connect' && <ConnectTab
+          trip={trip}
+          confirmedStay={confirmedStay}
+          onGoToPlan={() => selectTab('plan')}
+        />}
     </>
   );
 }

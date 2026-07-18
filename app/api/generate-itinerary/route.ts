@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ApiKeyError, GenerationError, generateItinerary } from '@/lib/claude';
 import { pickDestination } from '@/lib/destinations';
 import { fetchEvents } from '@/lib/events';
-import { fetchTopSpots } from '@/lib/places';
+import { centroidOf, fetchTopSpots } from '@/lib/places';
 import { getServiceClient } from '@/lib/supabase';
 import { BUDGET_TIERS, CONTINENTS } from '@/lib/types';
 import type {
@@ -124,6 +124,7 @@ export async function POST(request: Request) {
         ticketmasterConfigured: Boolean(process.env.TICKETMASTER_API_KEY),
       },
       persisted: tripId !== null,
+      center: centroidOf(spots),
     };
     return NextResponse.json(payload);
   } catch (err) {
