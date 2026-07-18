@@ -133,6 +133,8 @@ export type HotelMatchesRequest = {
   center?: GeoPoint | null;
   /** Optional: itinerary spots, used to rank stays by walking distance. */
   anchors?: Anchor[];
+  /** Optional: photo vibe tags, used to bias ordering toward matching stays. */
+  vibeTags?: string[];
 };
 
 export type HotelMatchesResponse = {
@@ -155,4 +157,20 @@ export type ConfirmedStay = {
   hotelName: string;
   checkIn: string;
   checkOut: string;
+};
+
+/** One destination Gemini matched to an uploaded photo. */
+export type VibeSuggestion = { destination: string; reason: string };
+
+/** What Gemini read out of the photo. */
+export type VibeAnalysis = {
+  tags: string[];
+  /** Words likely to appear in a matching listing's name; drives stay ordering. */
+  listingKeywords: string[];
+  suggestions: VibeSuggestion[];
+};
+
+export type VibeToDestinationResponse = VibeAnalysis & {
+  /** Supabase Storage URL, or null when storage isn't configured. */
+  imageUrl: string | null;
 };

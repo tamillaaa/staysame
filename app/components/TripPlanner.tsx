@@ -64,7 +64,13 @@ export default function TripPlanner() {
           onConfirmStay={setConfirmedStay}
         />
       )}
-      {activeTab === 'photo' && <PhotoTab onDestinationPicked={handleDestinationPicked} />}
+      {activeTab === 'photo' && (
+        <PhotoTab
+          onDestinationPicked={handleDestinationPicked}
+          onConfirmStay={setConfirmedStay}
+          confirmedStay={confirmedStay}
+        />
+      )}
       {activeTab === 'connect' && <ConnectTab
           trip={trip}
           confirmedStay={confirmedStay}

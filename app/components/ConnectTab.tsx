@@ -5,9 +5,9 @@ import type { ConfirmedStay, GenerateItineraryResponse } from '@/lib/types';
 /**
  * Solo-traveler connector.
  *
- * Three states: no trip, a trip with no confirmed stay, and a confirmed stay —
- * which is the point the QR code and match list become possible. The code
- * itself needs `/api/traveler-code` and auth, which land next.
+ * Three states: a confirmed stay (the point a QR code becomes possible), a trip
+ * without one, and nothing at all. A stay can arrive from either tab — the photo
+ * flow confirms one with no itinerary behind it — so it's checked first.
  */
 export default function ConnectTab({
   trip,
@@ -18,6 +18,21 @@ export default function ConnectTab({
   confirmedStay: ConfirmedStay | null;
   onGoToPlan: () => void;
 }) {
+  if (confirmedStay) {
+    return (
+      <div className="empty">
+        <h2>You&apos;re staying at {confirmedStay.hotelName}</h2>
+        <p>
+          {confirmedStay.checkIn} to {confirmedStay.checkOut}. Your QR code and the travelers there
+          on overlapping dates come next — that step needs sign-in, so it lands with auth.
+        </p>
+        <button type="button" className="link" onClick={onGoToPlan}>
+          {trip ? 'Back to your itinerary' : 'Plan the full trip'}
+        </button>
+      </div>
+    );
+  }
+
   if (!trip) {
     return (
       <div className="empty">
@@ -33,27 +48,12 @@ export default function ConnectTab({
     );
   }
 
-  if (!confirmedStay) {
-    return (
-      <div className="empty">
-        <h2>Pick where you&apos;re staying</h2>
-        <p>
-          Your {trip.destination} trip is ready. Choose a stay under &ldquo;Where to stay&rdquo; and
-          mark it as yours — that&apos;s what generates your traveler code.
-        </p>
-        <button type="button" className="link" onClick={onGoToPlan}>
-          Back to your itinerary
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="empty">
-      <h2>You&apos;re staying at {confirmedStay.hotelName}</h2>
+      <h2>Pick where you&apos;re staying</h2>
       <p>
-        {confirmedStay.checkIn} to {confirmedStay.checkOut}. Your QR code and the travelers there on
-        overlapping dates come next — that step needs sign-in, so it lands with auth.
+        Your {trip.destination} trip is ready. Choose a stay under &ldquo;Where to stay&rdquo; and
+        mark it as yours — that&apos;s what generates your traveler code.
       </p>
       <button type="button" className="link" onClick={onGoToPlan}>
         Back to your itinerary

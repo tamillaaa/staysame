@@ -18,7 +18,8 @@ export async function POST(request: Request) {
     return bad('Request body must be JSON.', 'BAD_JSON');
   }
 
-  const { destination, checkin, checkout, budget_tier, trip_id, center, anchors } = body ?? {};
+  const { destination, checkin, checkout, budget_tier, trip_id, center, anchors, vibeTags } =
+    body ?? {};
 
   if (!destination?.trim()) return bad('destination is required.', 'MISSING_DESTINATION');
   if (!BUDGET_TIERS.includes(budget_tier)) {
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       budgetTier: budget_tier as BudgetTier,
       center: center ?? null,
       anchors: anchors ?? [],
+      vibeTags: vibeTags ?? [],
     });
 
     if (!result.picks.length) {

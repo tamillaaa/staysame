@@ -8,10 +8,10 @@ that mixes top-rated real places, real ticketed events, and a couple of playful
 Built with Next.js (App Router), Supabase, Claude (itinerary generation), Gemini
 (image-to-destination), and Stay22 (hotels).
 
-> **Status:** this branch contains the foundation, the itinerary generator, and
-> Stay22 hotel matching. The "From a photo" tab is scaffolded with an empty
-> state, and the traveler connector is unlocked by confirming a stay but its QR
-> code and matching still need auth.
+> **Status:** this branch contains the foundation, the itinerary generator,
+> Stay22 hotel matching, and the photo-to-destination flow. The traveler
+> connector is unlocked by confirming a stay, but its QR code and matching still
+> need auth.
 
 ## Repository layout
 
@@ -107,6 +107,19 @@ saves them to `hotel_picks` against the trip. Each pick carries `proximity`
 (walking time to the nearest itinerary spot) and `blurb` (one sentence about the
 place). Renders inline beneath the itinerary; marking one as yours unlocks the
 Connect tab.
+
+### `POST /api/vibe-to-destination`
+
+`multipart/form-data` with a `photo` field. JPEG, PNG or WebP, up to 5MB.
+Returns `{ tags, listingKeywords, suggestions, imageUrl }` — the aesthetic read
+out of the image, three matching destinations with a reason each, and the
+Supabase Storage URL (`null` when storage isn't configured).
+
+### `POST /api/trips`
+
+`{ destination, source_image_url }`. Creates a bare trip row with an empty
+itinerary, so a stay confirmed straight from the photo flow still has something
+for the Connect tab to attach a traveler code to.
 
 ## Implementation notes
 
@@ -315,6 +328,19 @@ saves them to `hotel_picks` against the trip. Each pick carries `proximity`
 place). Renders inline beneath the itinerary; marking one as yours unlocks the
 Connect tab.
 
+### `POST /api/vibe-to-destination`
+
+`multipart/form-data` with a `photo` field. JPEG, PNG or WebP, up to 5MB.
+Returns `{ tags, listingKeywords, suggestions, imageUrl }` — the aesthetic read
+out of the image, three matching destinations with a reason each, and the
+Supabase Storage URL (`null` when storage isn't configured).
+
+### `POST /api/trips`
+
+`{ destination, source_image_url }`. Creates a bare trip row with an empty
+itinerary, so a stay confirmed straight from the photo flow still has something
+for the Connect tab to attach a traveler code to.
+
 ## Implementation notes
 
 - **Stay22 exposes no amenity data.** The `amenities` Gemini extracts can't be
@@ -326,6 +352,18 @@ Connect tab.
   Since the UI has no date picker yet, the server searches a 3-night window 30
   days out and divides the total by `meta.nights`. Pass `checkin`/`checkout`
   explicitly to override.
+- **Vibe matching leans on Gemini's listing keywords, not its mood tags.** The
+  mood tags ("sun-drenched", "cliffside") almost never appear in hotel names —
+  on a Positano search they matched **0%** of candidates. Gemini therefore also
+  returns `listing_keywords` (villa, terrace, suite, caldera), concrete nouns
+  that do appear, which lifted the match rate to 14%. This is a genuinely thin
+  signal either way: Stay22 exposes no amenity text, so the only thing to match
+  against is the property name. It nudges ordering; it does not transform the
+  list.
+- **Photo storage is optional.** Without Supabase the upload is skipped, the
+  browser's own object URL drives the preview thumbnail, and `imageUrl` comes
+  back `null` — the UI says the photo wasn't saved rather than failing. Storage
+  expects a public bucket named `vibe-photos`.
 - **`gemini-2.5-flash` is retired.** It returns `404 — no longer available to
   new users`. The server pins `gemini-3.5-flash` instead; override with
   `GEMINI_MODEL`.

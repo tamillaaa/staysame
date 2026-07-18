@@ -201,3 +201,228 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgb
 }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* --- globe loader (component existed from the design pass; styles did not) --- */
+.globe-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 20px;
+  text-align: center;
+}
+
+.globe {
+  width: 132px;
+  height: 132px;
+  overflow: visible;
+}
+
+.globe-outline,
+.globe .lat,
+.globe .meridian {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.1;
+}
+
+.globe-outline {
+  stroke: var(--text-strong);
+  stroke-width: 1.5;
+  opacity: 0.65;
+}
+
+.globe .meridian-1 { animation: meridian-sweep 6s linear infinite; }
+.globe .meridian-2 { animation: meridian-sweep 6s linear infinite -2s; }
+.globe .meridian-3 { animation: meridian-sweep 6s linear infinite -4s; }
+
+@keyframes meridian-sweep {
+  0%   { rx: 44px; opacity: 0.9; }
+  50%  { rx: 2px;  opacity: 0.35; }
+  100% { rx: 44px; opacity: 0.9; }
+}
+
+.globe .flight {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: flight-draw 2.6s ease-in-out infinite;
+}
+
+@keyframes flight-draw {
+  0%   { stroke-dashoffset: 100; }
+  55%  { stroke-dashoffset: 0; }
+  85%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.globe .pin {
+  fill: var(--accent);
+  opacity: 0;
+  animation: pin-land 2.6s ease-in-out infinite;
+}
+
+@keyframes pin-land {
+  0%, 50% { opacity: 0; transform: scale(0.4); }
+  62%     { opacity: 1; transform: scale(1.35); }
+  85%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(1); }
+}
+
+.globe .pin {
+  transform-origin: 97px 51px;
+}
+
+.globe-status {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.globe-line {
+  display: inline-block;
+  animation: fade-up 0.5s ease both;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.globe-sub {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe .meridian,
+  .globe .flight,
+  .globe .pin,
+  .globe-line {
+    animation: none;
+  }
+  .globe .flight { stroke-dashoffset: 0; }
+  .globe .pin { opacity: 1; }
+}
+
+/* --- photo tab --- */
+.photo-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 18px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible,
+.dropzone.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.dropzone-empty strong {
+  font-size: 17px;
+  color: var(--text-strong);
+}
+
+.dropzone-empty span {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.dropzone-preview {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.retry {
+  margin-top: 10px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.vibe-head {
+  font-size: 20px;
+  margin: 18px 0 12px;
+}
+
+.vibe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.vibe-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.vibe-card:hover {
+  border-color: var(--accent);
+}
+
+.vibe-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.vibe-dest {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.vibe-reason {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.handoff {
+  margin-top: 20px;
+}

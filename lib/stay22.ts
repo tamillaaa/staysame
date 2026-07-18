@@ -298,7 +298,7 @@ function familyKey(pick: HotelPick): string {
 const PRIOR_MEAN = 8.2; // roughly the median guest rating Stay22 returns
 const PRIOR_WEIGHT = 25; // reviews needed before the listing's own score dominates
 
-function quality(pick: HotelPick): number {
+function quality(pick: HotelPick, vibeTags: string[] = []): number {
   const rating = pick.guestRating;
   const base =
     rating === null
@@ -320,21 +320,80 @@ function quality(pick: HotelPick): number {
   if (pick.centralityMeters !== null) {
     score -= (Math.min(pick.centralityMeters, 6000) / 1000) * PROXIMITY_PENALTY_PER_KM;
   }
-  return score;
+  return score + vibeScore(pick, vibeTags);
 }
 
 /** Points deducted per kilometre from the nearest itinerary spot. */
 const PROXIMITY_PENALTY_PER_KM = 7;
 
+/**
+ * Loose keyword expansion for photo vibe tags.
+ *
+ * Stay22 exposes no amenity data, so the only text we can match against is the
+ * property name and the composed description (type, bedrooms, cancellation).
+ * That's a weak signal by design — this nudges ordering toward listings that
+ * read like the photo, it does not filter.
+ */
+const VIBE_KEYWORDS: Record<string, string[]> = {
+  coastal: ['beach', 'sea', 'ocean', 'marina', 'bay', 'seaside', 'waterfront', 'shore'],
+  tropical: ['beach', 'resort', 'villa', 'palm', 'island', 'lagoon'],
+  minimalist: ['design', 'modern', 'minimal', 'studio', 'loft', 'contemporary'],
+  moody: ['boutique', 'hideaway', 'noir', 'cellar', 'attic'],
+  cozy: ['cozy', 'cosy', 'guesthouse', 'cottage', 'cabin', 'inn', 'snug', 'charming'],
+  rustic: ['cottage', 'farmhouse', 'barn', 'cabin', 'stone', 'countryside'],
+  luxe: ['luxury', 'suite', 'spa', 'grand', 'palace', 'deluxe', 'residence'],
+  retro: ['vintage', 'classic', 'retro', 'historic', 'heritage', 'art deco'],
+  'gritty-urban': ['loft', 'industrial', 'warehouse', 'downtown', 'central', 'studio'],
+  urban: ['city', 'central', 'downtown', 'loft', 'metro'],
+  romantic: ['boutique', 'suite', 'garden', 'terrace', 'charming'],
+  bohemian: ['boutique', 'artsy', 'loft', 'quarter', 'bohemian'],
+  serene: ['garden', 'retreat', 'spa', 'quiet', 'sanctuary'],
+  historic: ['historic', 'heritage', 'palace', 'manor', 'old town', 'castle'],
+  alpine: ['chalet', 'lodge', 'mountain', 'ski', 'alpine'],
+  desert: ['riad', 'oasis', 'desert', 'lodge'],
+};
+
+/** Split a tag into the words worth matching, plus any mapped synonyms. */
+function keywordsForTag(tag: string): string[] {
+  const normalized = tag.toLowerCase().trim();
+  const mapped = VIBE_KEYWORDS[normalized] ?? [];
+  // The tag's own words count too, so unmapped tags still contribute.
+  const own = normalized.split(/[\s-]+/).filter((w) => w.length > 3);
+  return [...new Set([...mapped, ...own])];
+}
+
+/** Points added per matching vibe tag; capped so it biases without dominating. */
+const VIBE_BONUS_PER_TAG = 4;
+const MAX_VIBE_BONUS = 12;
+
+/**
+ * How well a listing's text echoes the photo's tags.
+ *
+ * A tag scores at most once, however many of its keywords hit, so a listing
+ * called "Beach Beach Beach Villa" doesn't outrank a genuinely good match.
+ */
+function vibeScore(pick: HotelPick, vibeTags: string[]): number {
+  if (!vibeTags.length) return 0;
+
+  const haystack = `${pick.name} ${pick.description} ${pick.type ?? ''}`.toLowerCase();
+  let matched = 0;
+  for (const tag of vibeTags) {
+    if (keywordsForTag(tag).some((word) => haystack.includes(word))) matched += 1;
+  }
+  return Math.min(matched * VIBE_BONUS_PER_TAG, MAX_VIBE_BONUS);
+}
+
 /** Best listing from each family, best families first. */
-function diversify(picks: HotelPick[], limit: number): HotelPick[] {
+function diversify(picks: HotelPick[], limit: number, vibeTags: string[] = []): HotelPick[] {
   const families = new Map<string, HotelPick>();
   for (const pick of picks) {
     const key = familyKey(pick);
     const incumbent = families.get(key);
-    if (!incumbent || quality(pick) > quality(incumbent)) families.set(key, pick);
+    if (!incumbent || quality(pick, vibeTags) > quality(incumbent, vibeTags)) families.set(key, pick);
   }
-  return [...families.values()].sort((a, b) => quality(b) - quality(a)).slice(0, limit);
+  return [...families.values()]
+    .sort((a, b) => quality(b, vibeTags) - quality(a, vibeTags))
+    .slice(0, limit);
 }
 
 /**
@@ -353,6 +412,8 @@ export async function searchStays(args: {
   center?: GeoPoint | null;
   /** Itinerary spots, used to rank stays by walking distance. */
   anchors?: Anchor[];
+  /** Photo vibe tags, used to bias ordering toward listings that read alike. */
+  vibeTags?: string[];
 }): Promise<HotelSearchResult> {
   const {
     destination,
@@ -362,6 +423,7 @@ export async function searchStays(args: {
     limit = 5,
     center = null,
     anchors = [],
+    vibeTags = [],
   } = args;
   // Over-fetch so there's a real pool to diversify and rank from.
   const fetchSize = Math.min(Math.max(limit * 6, 30), 100);
@@ -433,7 +495,8 @@ export async function searchStays(args: {
           proximity: nearestAnchor(pick, anchors),
           centralityMeters: centrality(pick, anchors),
         })),
-      limit
+      limit,
+      vibeTags
     ),
     checkin,
     checkout,
