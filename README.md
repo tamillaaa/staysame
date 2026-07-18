@@ -109,12 +109,13 @@ Accepts the analysis above plus:
 
 | Field | Notes |
 | --- | --- |
-| `location` | Where to search — a city, region or country. Falls back to `destination_guess` when omitted. |
+| `location` | Where to search — a city, region or country. Anything broader than a city is expanded into three vibe-matched places inside it. Falls back to `destination_guess` when omitted. |
 | `anywhere` | When `true`, `location` is ignored: Gemini picks three vibe-matched destinations and the server searches all of them, interleaving the results. |
 | `checkin` / `checkout` | Optional `YYYY-MM-DD`. Defaults to a 3-night window 30 days out. |
 
-Returns `{ destination, checkin, checkout, nights, stays }` — plus
-`destinations` (the array of places searched) in `anywhere` mode. Each stay is:
+Returns `{ destination, checkin, checkout, nights, stays }`, plus `destinations`
+(the array of places actually searched) and `expandedFrom` (the broad input
+they were derived from, or `null`). Each stay is:
 
 ```json
 {
@@ -146,12 +147,18 @@ Returns `{ destination, checkin, checkout, nights, stays }` — plus
   for a featureless colour gradient. Because the guess is confident but often
   wrong, the destination picker is always visible and pre-filled with it rather
   than only appearing when the guess is `null`.
-- **Broad regions geocode badly on Stay22.** "Southeast Asia" matched a village
-  in Czechia and "Caribbean" returned a single result in Haiti. Cities,
-  countries and named regions ("Amalfi Coast, Italy", "Tuscany") all resolve
-  correctly, so the "Anywhere" prompt requires specific `Place, Country` names
-  and rejects vague answers. Free-text entry is not restricted — a user who
-  types a continent will get whatever Stay22 geocodes it to.
+- **Broad inputs are expanded before searching.** Stay22 resolves a country to
+  one arbitrary point and searches ~10km around it, so `location=Portugal`
+  returned inland guesthouses in a village called Bicas, and `Italy` returned a
+  lakeside mountain town for a beach photo. Anything broader than a city is
+  therefore passed through `resolveDestinations()`, which asks Gemini for three
+  specific places inside it that match the vibe — "Japan" + beach becomes
+  Okinawa, Ishigaki and Miyakojima; "Japan" + mountain becomes Hakuba, Niseko
+  and Yuzawa. A city is passed through untouched, and the response carries
+  `expandedFrom` so the UI can say what actually happened.
+- **The auto-search path skips resolution.** When the destination still equals
+  Gemini's own guess, it's already specific, so the extra round trip is
+  skipped. Editing the field triggers resolution.
 - **"Anywhere" tolerates partial failure.** The three destination searches run
   in parallel via `Promise.allSettled`; if one geocodes badly or rate-limits,
   the others still return. Only an all-failed result raises an error.

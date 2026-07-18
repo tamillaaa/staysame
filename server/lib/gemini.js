@@ -224,6 +224,60 @@ Respond ONLY with a valid JSON array of strings, no markdown:
   }
 }
 
+/**
+ * Turn whatever the traveler typed into destinations Stay22 can actually
+ * search well.
+ *
+ * Stay22 resolves a country to a single arbitrary point and searches ~10km
+ * around it, so "Portugal" returned inland guesthouses in a village called
+ * Bicas and "Italy" returned a mountain town for a beach photo. Broad inputs
+ * are therefore expanded into specific places within them that match the vibe;
+ * an already-specific city is passed through untouched.
+ */
+export async function resolveDestinations({ analysis, location, count = 3 }) {
+  const typed = location.trim();
+
+  const prompt = `A traveler searching for hotels typed this destination: "${typed}"
+
+Their inspiration photo has this vibe: "${analysis.vibe}", price tier "${analysis.price_tier}", desired amenities: ${analysis.amenities.join(', ') || 'none specified'}. Photo description: "${analysis.description}"
+
+Decide which case applies:
+
+1. If "${typed}" is already a specific searchable place (a city, town, island, resort area or neighbourhood), return just that one place, normalized to "Place, Country".
+
+2. If "${typed}" is a country, state, province or large region, it is too broad to search directly. Return the ${count} best specific destinations WITHIN it that match the traveler's vibe and budget. For a "${analysis.vibe}" vibe, choose places genuinely known for that — a beach vibe in Portugal means coastal areas like the Algarve, never an inland village.
+
+Rules for every destination you return:
+- Must be specific enough for a hotel search to geocode to the right area.
+- Format as "Place, Country" (for example "Lagos, Portugal", "Amalfi Coast, Italy", "Niseko, Japan").
+- Never return a bare country name on its own.
+- Stay inside "${typed}" — do not suggest places in other countries.
+
+Respond ONLY with valid JSON, no markdown:
+{"broad": true or false, "destinations": ["Place, Country", ...]}`;
+
+  try {
+    const response = await getClient().models.generateContent({
+      model: LITE_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+    const parsed = JSON.parse(stripCodeFences(response.text ?? ''));
+
+    const usable = (Array.isArray(parsed?.destinations) ? parsed.destinations : []).filter(
+      (d) => typeof d === 'string' && d.includes(',') && d.trim().length > 3
+    );
+    if (!usable.length) throw new Error('no usable destinations returned');
+
+    const expanded = Boolean(parsed.broad) && usable.length > 1;
+    return { destinations: usable.slice(0, expanded ? count : 1), expanded };
+  } catch (err) {
+    // Fall back to searching exactly what was typed — worse results for a
+    // country, but never worse than failing the search outright.
+    console.warn('[gemini] destination resolution failed, using raw input:', err.message);
+    return { destinations: [typed], expanded: false };
+  }
+}
+
 /** Deterministic caption used when the caption model call fails. */
 function fallbackCaption(analysis, listing) {
   const bits = [];

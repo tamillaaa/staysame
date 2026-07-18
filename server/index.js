@@ -2,7 +2,12 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { analyzePhoto, generateMatchCaptions, suggestDestinations } from './lib/gemini.js';
+import {
+  analyzePhoto,
+  generateMatchCaptions,
+  suggestDestinations,
+  resolveDestinations,
+} from './lib/gemini.js';
 import { searchStays, searchAnywhere } from './lib/stay22.js';
 
 const app = express();
@@ -104,16 +109,35 @@ app.post('/api/search-stays', async (req, res) => {
       description: description ?? '',
     };
 
-    // "Anywhere": let Gemini choose vibe-matched destinations, then search them
-    // all. Otherwise search the user's chosen place, falling back to the guess.
-    const { listings, destination, ...window } = anywhere
-      ? await searchAnywhere({
-          analysis,
-          destinations: await suggestDestinations({ analysis }),
-          checkin,
-          checkout,
-        })
-      : await searchStays({ analysis, location, checkin, checkout });
+    const chosen = location?.trim() || analysis.destination_guess;
+    if (!anywhere && !chosen) {
+      return res.status(400).json({
+        error: 'No destination provided or detected from the photo.',
+        code: 'MISSING_DESTINATION',
+      });
+    }
+
+    // Work out which places to search. "Anywhere" picks them from the vibe
+    // alone; otherwise a broad input like "Portugal" is expanded into specific
+    // places within it, while a city is passed straight through.
+    let destinations;
+    let expandedFrom = null;
+    if (anywhere) {
+      destinations = await suggestDestinations({ analysis });
+    } else if (chosen === analysis.destination_guess) {
+      // Gemini produced this guess itself and it's already specific — skip the
+      // extra round trip on the common auto-search path.
+      destinations = [chosen];
+    } else {
+      const resolved = await resolveDestinations({ analysis, location: chosen });
+      destinations = resolved.destinations;
+      if (resolved.expanded) expandedFrom = chosen;
+    }
+
+    const { listings, destination, ...window } =
+      destinations.length > 1
+        ? await searchAnywhere({ analysis, destinations, checkin, checkout })
+        : await searchStays({ analysis, location: destinations[0], checkin, checkout });
 
     if (!listings.length) {
       return res.status(404).json({
@@ -130,7 +154,7 @@ app.post('/api/search-stays', async (req, res) => {
       matchReason: captions[i],
     }));
 
-    res.json({ destination, ...window, stays });
+    res.json({ destination, expandedFrom, ...window, stays });
   } catch (err) {
     sendError(res, err, 'Could not search for stays. Please try again.');
   }

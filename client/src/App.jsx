@@ -76,11 +76,21 @@ function App() {
           ? `Matched stays across ${formatDestinations(data.destinations)}`
           : `Matched stays in ${data.destination}`
       );
-      setNotice(
-        data.relaxedPriceFilter
-          ? `Nothing matched your ${photoAnalysis.price_tier} budget there, so here are the closest options.`
-          : null
-      );
+
+      // Say so when we searched somewhere other than what was typed, rather
+      // than silently substituting destinations.
+      const messages = [];
+      if (data.expandedFrom) {
+        messages.push(
+          `${data.expandedFrom} is a big place, so we focused on the spots that best match your ${photoAnalysis.vibe} vibe.`
+        );
+      }
+      if (data.relaxedPriceFilter) {
+        messages.push(
+          `Nothing matched your ${photoAnalysis.price_tier} budget there, so here are the closest options.`
+        );
+      }
+      setNotice(messages.length ? messages : null);
     } catch {
       setStays([]);
       setError('Could not reach the server while searching for stays. Is it running?');
@@ -134,7 +144,7 @@ function App() {
       await runSearch(photoAnalysis, { location: guess, searchAnywhere: false });
     } else {
       setPhase('idle');
-      setNotice("We couldn't tell where this photo was taken — pick a place, or search anywhere.");
+      setNotice(["We couldn't tell where this photo was taken — pick a place, or search anywhere."]);
     }
   };
 
@@ -232,7 +242,11 @@ function App() {
             </form>
           )}
 
-          {notice && <p className="notice-message">{notice}</p>}
+          {notice?.map((message) => (
+            <p className="notice-message" key={message}>
+              {message}
+            </p>
+          ))}
 
           {phase === 'searching' && (
             <p className="loading-message">
