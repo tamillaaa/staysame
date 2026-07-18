@@ -43,6 +43,12 @@ export type Spot = {
 /** Map centre used to anchor the hotel search, sized to the spots' spread. */
 export type GeoPoint = { lat: number; lng: number; radiusMeters?: number };
 
+/** A named place from the itinerary, used to measure how close a stay is. */
+export type Anchor = { name: string; lat: number; lng: number };
+
+/** How far a stay is from the nearest thing on the itinerary. */
+export type Proximity = { spotName: string; meters: number; walkMinutes: number };
+
 /** A real event from Ticketmaster, fed to Claude as grounding. */
 export type LiveEvent = {
   name: string;
@@ -80,6 +86,8 @@ export type GenerateItineraryResponse = {
   persisted: boolean;
   /** Centre of the itinerary's spots; anchors the hotel search. */
   center: GeoPoint | null;
+  /** The spots themselves, so stays can be ranked by walking distance to them. */
+  anchors: Anchor[];
 };
 
 export type ApiError = { error: string; code: string };
@@ -99,6 +107,10 @@ export type HotelPickPublic = {
   reviewCount: number | null;
   freeCancellation: boolean;
   description: string;
+  /** Distance to the closest itinerary spot, when anchors were supplied. */
+  proximity: Proximity | null;
+  /** One evocative sentence about the place, grounded only in known facts. */
+  blurb: string | null;
 };
 
 export type HotelMatchesRequest = {
@@ -110,6 +122,8 @@ export type HotelMatchesRequest = {
   trip_id?: string | null;
   /** Optional: search around this point instead of geocoding the destination. */
   center?: GeoPoint | null;
+  /** Optional: itinerary spots, used to rank stays by walking distance. */
+  anchors?: Anchor[];
 };
 
 export type HotelMatchesResponse = {

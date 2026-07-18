@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Stay22Error, searchStays } from '@/lib/stay22';
+import { generateBlurbs } from '@/lib/blurbs';
 import { getServiceClient } from '@/lib/supabase';
 import { BUDGET_TIERS } from '@/lib/types';
 import type { BudgetTier } from '@/lib/types';
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     return bad('Request body must be JSON.', 'BAD_JSON');
   }
 
-  const { destination, checkin, checkout, budget_tier, trip_id, center } = body ?? {};
+  const { destination, checkin, checkout, budget_tier, trip_id, center, anchors } = body ?? {};
 
   if (!destination?.trim()) return bad('destination is required.', 'MISSING_DESTINATION');
   if (!BUDGET_TIERS.includes(budget_tier)) {
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       checkout,
       budgetTier: budget_tier as BudgetTier,
       center: center ?? null,
+      anchors: anchors ?? [],
     });
 
     if (!result.picks.length) {
@@ -47,6 +49,12 @@ export async function POST(request: Request) {
         { status: 404 }
       );
     }
+
+    // Blurbs degrade to null rather than failing the search.
+    const blurbs = await generateBlurbs({ destination: destination.trim(), picks: result.picks });
+    result.picks.forEach((pick, i) => {
+      pick.blurb = blurbs[i];
+    });
 
     // Persist alongside the trip when both Supabase and a trip id are present.
     // A failure here must not lose the results the user is waiting on.
@@ -77,7 +85,7 @@ export async function POST(request: Request) {
       centeredOnItinerary: result.centeredOnItinerary,
       affiliateConfigured: Boolean(process.env.STAY22_AID),
       persisted,
-      picks: result.picks.map(({ raw, ...pick }) => pick),
+      picks: result.picks.map(({ raw, lat, lng, type, centralityMeters, ...pick }) => pick),
     };
     return NextResponse.json(payload);
   } catch (err) {

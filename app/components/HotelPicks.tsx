@@ -25,7 +25,7 @@ export default function HotelPicks({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { destination, startDate, endDate, budgetTier, tripId, center } = trip;
+  const { destination, startDate, endDate, budgetTier, tripId, center, anchors } = trip;
 
   useEffect(() => {
     if (!startDate || !endDate) return;
@@ -46,6 +46,7 @@ export default function HotelPicks({
             budget_tier: budgetTier,
             trip_id: tripId,
             center,
+            anchors,
           }),
         });
         const data = await response.json();
@@ -64,7 +65,7 @@ export default function HotelPicks({
     return () => {
       cancelled = true;
     };
-  }, [destination, startDate, endDate, budgetTier, tripId, center]);
+  }, [destination, startDate, endDate, budgetTier, tripId, center, anchors]);
 
   function toggleConfirm(pick: HotelPickPublic) {
     if (confirmedStay?.hotelName === pick.name) {
@@ -117,7 +118,14 @@ export default function HotelPicks({
                   )}
                   <div className="stay-body">
                     <h4 className="stay-name">{pick.name}</h4>
-                    <p className="stay-loc">{pick.location}</p>
+                    {pick.proximity ? (
+                      <p className="stay-near">
+                        {pick.proximity.walkMinutes} min walk to {pick.proximity.spotName}
+                      </p>
+                    ) : (
+                      <p className="stay-loc">{pick.location}</p>
+                    )}
+                    {pick.blurb && <p className="stay-blurb">{pick.blurb}</p>}
                     <p className="stay-desc">{pick.description}</p>
                     <p className="stay-price">{pick.priceLabel}</p>
 

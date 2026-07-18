@@ -103,8 +103,10 @@ grounded it.
 ```
 
 Searches Stay22 for stays, returns the top 5 with Allez booking deeplinks, and
-saves them to `hotel_picks` against the trip. Renders inline beneath the
-itinerary; marking one as yours unlocks the Connect tab.
+saves them to `hotel_picks` against the trip. Each pick carries `proximity`
+(walking time to the nearest itinerary spot) and `blurb` (one sentence about the
+place). Renders inline beneath the itinerary; marking one as yours unlocks the
+Connect tab.
 
 ## Implementation notes
 
@@ -137,6 +139,21 @@ itinerary; marking one as yours unlocks the Connect tab.
   address. Note the street key strips `º`/`ª` explicitly: they are Unicode
   *letters*, so a `\p{L}` filter alone leaves `"rua da rosa º"` unequal to
   `"rua da rosa"`.
+- **Stays are ranked by centrality, but display the nearest spot.** Ranking on
+  the closest attraction alone rewards a hotel that happens to sit beside one
+  outlying stop — a place next to the Oceanário would read "2 min walk" while
+  being 7km from the other nine. Ranking uses the *median* distance to every
+  spot; the card shows the nearest one, since that's what a traveler wants to
+  read. For a Lisbon trip spanning 12.3km, the picks landed in Bairro Alto,
+  within 1.4km of seven of the ten spots.
+- **Blurbs may describe the neighbourhood, never the property.** Stay22 returns
+  no prose, and inventing a hotel's history or amenities is a claim a traveler
+  could act on. The model gets only the facts we hold and is allowed to draw on
+  what it knows about the *street or district* — Kyoto picks cite Shinsen-en
+  garden and the machiya lanes of Shinmachi-Rokkaku — while any claim about the
+  building itself is forbidden. A deterministic pass also strips cross-listing
+  openers ("Also on Rua da Atalaia…"), which the prompt alone didn't fully
+  prevent since the model writes all five at once.
 - **Hotel ranking is confidence-weighted.** Sorting on the raw guest rating
   surfaced novelty stays with perfect scores from a handful of reviews — one
   Lisbon mid-tier list came back as five boats. Scores now shrink toward the
@@ -293,8 +310,10 @@ they were derived from, or `null`). Each stay is:
 ```
 
 Searches Stay22 for stays, returns the top 5 with Allez booking deeplinks, and
-saves them to `hotel_picks` against the trip. Renders inline beneath the
-itinerary; marking one as yours unlocks the Connect tab.
+saves them to `hotel_picks` against the trip. Each pick carries `proximity`
+(walking time to the nearest itinerary spot) and `blurb` (one sentence about the
+place). Renders inline beneath the itinerary; marking one as yours unlocks the
+Connect tab.
 
 ## Implementation notes
 

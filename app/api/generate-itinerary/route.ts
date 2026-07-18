@@ -125,6 +125,11 @@ export async function POST(request: Request) {
       },
       persisted: tripId !== null,
       center: centroidOf(spots),
+      // Named spots with coordinates, so stays can be ranked by walking distance.
+      anchors: spots
+        .filter((s) => s.lat !== null && s.lng !== null)
+        .slice(0, 10)
+        .map((s) => ({ name: s.name, lat: s.lat!, lng: s.lng! })),
     };
     return NextResponse.json(payload);
   } catch (err) {
