@@ -1,4 +1,111 @@
-# Ghostwriter
+# Vibe Trip
+
+Plan a trip from a vibe. The itinerary generator is the landing page: pick a
+destination (or let it surprise you), set a budget, and get a day-by-day plan
+that mixes top-rated real places, real ticketed events, and a couple of playful
+"side quests" per day.
+
+Built with Next.js (App Router), Supabase, Claude (itinerary generation), Gemini
+(image-to-destination), and Stay22 (hotels).
+
+> **Status:** this branch contains the foundation plus the itinerary generator.
+> The "From a photo" and "Connect" tabs are scaffolded with empty states; the
+> hotel-matching and traveler-connector features are not built yet.
+
+## Repository layout
+
+This repo holds two applications:
+
+| Path | What it is |
+| --- | --- |
+| `app/`, `lib/`, `supabase/` | **Vibe Trip** — the Next.js app documented below |
+| `client/`, `server/` | **Ghostwriter** — the earlier Vite + Express photo-to-hotel prototype, kept for its working Gemini and Stay22 integrations. See [Ghostwriter](#ghostwriter-legacy-prototype) below. |
+
+## Setup
+
+Requires Node.js 18+.
+
+```bash
+npm install
+cp .env.local.example .env.local
+```
+
+Then fill in `.env.local`:
+
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Itinerary generation | Required. Without it `/api/generate-itinerary` returns a clear 500. |
+| `GOOGLE_PLACES_API_KEY` | Real places | Optional. Without it the itinerary is built from the model's own knowledge, and the UI says so. |
+| `TICKETMASTER_API_KEY` | Real events | Optional, same degradation. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Saving trips | Optional. Without them itineraries generate but aren't persisted. |
+| `GEMINI_API_KEY`, `STAY22_API_KEY`, `STAY22_AID` | Photo and hotel tabs | Not used yet on this branch. |
+| `ELEVENLABS_API_KEY` | Narration | Stretch goal, not wired up. |
+
+Apply the database schema with the Supabase CLI:
+
+```bash
+supabase db push
+```
+
+Then run it:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Page structure
+
+One page, three tabs, with the active tab in the URL as `?tab=plan|photo|connect`
+so tabs are linkable. Switching tabs does not reload the page.
+
+- **Plan a trip** (default) — the itinerary generator. Hotel picks will render
+  inline here once Stay22 is wired up.
+- **From a photo** — the image-to-destination uploader. Selecting a suggested
+  destination switches back to the plan tab with it pre-filled.
+- **Connect** — the solo-traveler QR connector, unlocked by a booked hotel.
+
+## API
+
+### `POST /api/generate-itinerary`
+
+```json
+{
+  "mode": "destination" | "surprise_me" | "continent",
+  "destination": "Lisbon, Portugal",
+  "continent": "Europe",
+  "budget_tier": "shoestring" | "mid" | "splurge",
+  "trip_length_days": 4,
+  "start_date": "2026-08-17"
+}
+```
+
+Resolves the destination, fetches top-rated spots (Google Places) and events in
+the date range (Ticketmaster), feeds both to Claude, and saves the result to
+`trips`. Returns the itinerary plus a `sources` block reporting what actually
+grounded it.
+
+## Implementation notes
+
+- **Structured outputs, not prompt-and-parse.** The itinerary comes back through
+  `output_config.format` with a JSON schema, so the response is guaranteed-valid
+  JSON — no markdown fences to strip and no parse-retry loop.
+- **Grounding degrades, it doesn't break.** Places and Ticketmaster each return
+  `[]` on a missing key or a failed call. The itinerary still generates, the
+  prompt tells Claude not to invent venues or events it wasn't given, and the UI
+  states which sources were actually used.
+- **Persistence is optional.** With Supabase unconfigured the trip generates and
+  renders but isn't saved, and the UI says so rather than silently dropping it.
+- **`surprise_me` uses a curated pool**, not a model call — the surprise is
+  instant and every entry is a specific, geocodable city grouped by budget, so a
+  shoestring surprise doesn't land in Zurich.
+- **TypeScript is pinned to 5.x.** TypeScript 7 crashes the Next 16 build worker
+  (`The "id" argument must be of type string`).
+
+---
+
+# Ghostwriter (legacy prototype)
 
 Ghostwriter matches travelers to hotel stays based on the vibe of an inspiration
 photo. Upload an image, and Ghostwriter analyzes its aesthetic to surface hotel
