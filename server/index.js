@@ -149,7 +149,8 @@ app.post('/api/search-stays', async (req, res) => {
     }
 
     const captions = await generateMatchCaptions({ analysis, listings });
-    const stays = listings.map(({ type, stars, guestRating, freeCancellation, ...card }, i) => ({
+    // Strip the caption-only fields before the listing reaches the client.
+    const stays = listings.map(({ type, stars, guestRating, reviewCount, priceValue, guests, bedrooms, freeCancellation, ...card }, i) => ({
       ...card,
       matchReason: captions[i],
     }));

@@ -156,6 +156,42 @@ main {
   font-style: italic;
 }
 
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The reveal moment: the narrative arrives on its own, larger and quieter than
+   the UI around it, and the rest of the page follows a beat later. */
+.narrative {
+  margin: 12px 0;
+  max-width: 620px;
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  font-size: 22px;
+  line-height: 1.7;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--text-h);
+  animation: fade-up 1.1s ease both;
+}
+
+.reveal {
+  animation: fade-up 0.7s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .narrative,
+  .reveal {
+    animation: none;
+  }
+}
+
 .destination-picker {
   display: flex;
   flex-direction: column;
@@ -302,12 +338,16 @@ main {
   color: var(--text);
 }
 
+/* Deliberately quieter than the listing copy: these captions name real
+   shortfalls, so they should read as an honest aside rather than ad copy. */
 .hotel-card-match {
   font-size: 13px;
   font-style: italic;
-  color: var(--accent);
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.85;
   padding-left: 10px;
-  border-left: 2px solid var(--accent-border);
+  border-left: 2px solid var(--border);
 }
 
 .hotel-card-price {

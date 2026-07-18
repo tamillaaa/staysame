@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PhotoUpload from './components/PhotoUpload';
 import HotelCard from './components/HotelCard';
 import './App.css';
@@ -29,6 +29,12 @@ function App() {
   const [phase, setPhase] = useState('idle'); // idle | analyzing | searching
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
+  // The narrative lands first and the rest follows a beat later, so the result
+  // reads as a reveal rather than everything appearing at once.
+  const [revealDetails, setRevealDetails] = useState(false);
+  const revealTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(revealTimer.current), []);
 
   const busy = phase === 'analyzing' || phase === 'searching';
   const canSearch = anywhere || destinationInput.trim().length > 0;
@@ -39,6 +45,8 @@ function App() {
       if (old) URL.revokeObjectURL(old);
       return URL.createObjectURL(selectedFile);
     });
+    clearTimeout(revealTimer.current);
+    setRevealDetails(false);
     setAnalysis(null);
     setStays([]);
     setHeading(null);
@@ -111,6 +119,8 @@ function App() {
     setStays([]);
     setAnalysis(null);
     setHeading(null);
+    clearTimeout(revealTimer.current);
+    setRevealDetails(false);
 
     let photoAnalysis;
     try {
@@ -128,6 +138,13 @@ function App() {
       }
       photoAnalysis = await response.json();
       setAnalysis(photoAnalysis);
+      // Hold the narrative alone for a moment before the tags and picker join
+      // it. With no narrative there's nothing to pause on, so skip the beat.
+      if (photoAnalysis.narrative) {
+        revealTimer.current = setTimeout(() => setRevealDetails(true), 1600);
+      } else {
+        setRevealDetails(true);
+      }
     } catch {
       setError('Could not reach the server while analyzing your photo. Is it running?');
       setPhase('idle');
@@ -185,8 +202,12 @@ function App() {
             </p>
           )}
 
-          {analysis && (
-            <div className="vibe-summary">
+          {analysis?.narrative && (
+            <p className="narrative">{analysis.narrative}</p>
+          )}
+
+          {analysis && revealDetails && (
+            <div className="vibe-summary reveal">
               <p className="vibe-description">{analysis.description}</p>
               <ul className="vibe-tags">
                 {tags.map((tag) => (
@@ -198,8 +219,8 @@ function App() {
             </div>
           )}
 
-          {analysis && (
-            <form className="destination-picker" onSubmit={handleSearchSubmit}>
+          {analysis && revealDetails && (
+            <form className="destination-picker reveal" onSubmit={handleSearchSubmit}>
               <span className="destination-label">Where to?</span>
 
               <div className="destination-modes">
@@ -257,8 +278,8 @@ function App() {
           )}
         </section>
 
-        {stays.length > 0 && (
-          <section className="results-section">
+        {stays.length > 0 && revealDetails && (
+          <section className="results-section reveal">
             <h2>{heading}</h2>
             <div className="hotel-grid">
               {stays.map((hotel) => (

@@ -10,7 +10,7 @@ const DEFAULT_LEAD_DAYS = 30;
 const DEFAULT_NIGHTS = 3;
 
 /** Per-night USD bands used to translate Gemini's price_tier into min/max. */
-const PRICE_TIERS = {
+export const PRICE_TIERS = {
   budget: { max: 120 },
   mid: { min: 100, max: 300 },
   luxury: { min: 275 },
@@ -69,6 +69,10 @@ function transformListing(raw, { nights, currency }) {
     type: raw.type ?? null,
     stars: raw.rating?.hotelStars ?? null,
     guestRating: raw.rating?.value ?? null,
+    reviewCount: raw.rating?.count ?? null,
+    priceValue: perNight,
+    guests: raw.capacity?.guests ?? null,
+    bedrooms: raw.capacity?.bedrooms ?? null,
     freeCancellation: raw.policies?.freeCancellation ?? false,
   };
 }

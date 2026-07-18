@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { PRICE_TIERS as PRICE_BANDS } from './stay22.js';
 
 // gemini-2.5-flash is retired ("no longer available to new users"), so this
 // pins the current flash model. Prefer an explicit version over the moving
@@ -16,8 +17,11 @@ const ANALYZE_PROMPT = `You are a travel vibe analyst. Look at this image and ex
   "amenities": ["string", ...],
   "destination_guess": "string or null",
   "price_tier": "budget" | "mid" | "luxury",
-  "description": "one sentence describing the aesthetic, for display to the user"
-}`;
+  "description": "one sentence describing the aesthetic, for display to the user",
+  "narrative": "a wistful 2-3 sentence description of the imagined trip, written in second person, evocative but not overwrought"
+}
+
+For "narrative", write as if the trip is already happening to the reader. Ground it in specific physical detail drawn from the image — light, texture, temperature, sound — rather than abstract adjectives. Tone to aim for: "There's a version of you already there — bare feet on warm tile, a door that opens straight onto the water." Do not mention hotels, booking, or prices.`;
 
 const STRICTER_REMINDER =
   'Your previous response could not be parsed as JSON. Return ONLY the raw JSON object. ' +
@@ -78,6 +82,7 @@ export function validateAnalysis(data) {
         : null,
     price_tier: data.price_tier,
     description: typeof data.description === 'string' ? data.description : '',
+    narrative: typeof data.narrative === 'string' ? data.narrative.trim() : '',
   };
 }
 
@@ -135,16 +140,36 @@ export async function generateMatchCaptions({ analysis, listings }) {
     location: l.location,
     stars: l.stars,
     guestRating: l.guestRating,
-    pricePerNight: l.price,
+    reviewCount: l.reviewCount,
+    pricePerNight: l.priceValue,
+    sleeps: l.guests,
+    bedrooms: l.bedrooms,
     freeCancellation: l.freeCancellation,
+    gaps: findGaps(analysis, l),
   }));
 
-  const prompt = `A traveler uploaded a photo with this vibe: "${analysis.vibe}", price tier "${analysis.price_tier}", and these desired amenities: ${analysis.amenities.join(', ') || 'none specified'}. Photo description: "${analysis.description}"
+  const prompt = `A traveler uploaded a photo with this vibe: "${analysis.vibe}", price tier "${analysis.price_tier}". Photo description: "${analysis.description}"
 
-Here are hotel listings as JSON:
+The photo suggested these features: ${analysis.amenities.join(', ') || 'none specified'}.
+
+CRITICAL: our hotel data source provides NO amenity information. You do not know whether any of these properties has a pool, a view, a spa, a balcony or anything else. You know ONLY the fields below.
+
+Here are the listings as JSON. The "gaps" array lists shortfalls we have actually verified:
 ${JSON.stringify(facts, null, 2)}
 
-For each listing, write one short sentence (max 15 words) explaining why it matches the traveler's photo. Reference concrete details from the listing (its type, star rating, guest score, or location). Do not invent amenities that are not listed.
+For each listing write ONE honest sentence, maximum 22 words, addressed to the traveler as "you".
+
+- If "gaps" is non-empty: name the single most important gap plainly, then give one genuine strength as a counterweight. Example: "At $412 it runs past your budget, but you get a 5-star cliffside address."
+- If "gaps" is empty: connect it warmly to the photo's vibe using ONE concrete detail — its star class, its guest score, or where it sits. Where the photo hinged on a specific feature, say that feature is unconfirmed.
+- You may say a photo feature is unconfirmed — "we can't confirm the plunge pool" — but NEVER state that a property has or lacks one. Claiming "no pool here" is a lie: we have no such data.
+
+Style rules:
+- The card already displays the price, guest rating, review count and capacity. Do NOT restate them as figures. The one exception: when price is the gap, naming the amount is the point.
+- Never write a spec list like "5-star hotel with a 9 rating and 301 reviews at 686 dollars per night". Say something the card does not already say.
+- These captions appear stacked in a grid, so they must not read as variations of one template. Vary the sentence shape across the set and never open two captions the same way.
+- Raise an unconfirmed photo feature on at most a third of the listings, and phrase it plainly ("we can't promise the plunge pool") rather than legalistically ("we cannot verify the existence of"). For the rest, simply say what the place is.
+- No marketing language. Do not oversell.
+- Banned words: might, could, may, perhaps, possibly, likely, probably, seems, appears.
 
 Respond ONLY with a valid JSON array of objects, no markdown:
 [{"index": 0, "caption": "..."}, ...]`;
@@ -278,8 +303,45 @@ Respond ONLY with valid JSON, no markdown:
   }
 }
 
+/**
+ * Shortfalls we can actually prove from Stay22's data, so the caption model
+ * names real gaps instead of inventing amenity ones. Amenities are deliberately
+ * absent here: the API returns none, so any claim about them would be fiction.
+ */
+function findGaps(analysis, listing) {
+  const gaps = [];
+  const band = PRICE_BANDS[analysis.price_tier];
+
+  if (listing.priceValue && band?.max && listing.priceValue > band.max) {
+    gaps.push(
+      `costs $${listing.priceValue}/night, above the ${analysis.price_tier} range (up to $${band.max})`
+    );
+  }
+  if (analysis.vibe === 'luxury' && listing.stars && listing.stars < 4) {
+    gaps.push(`is only ${listing.stars}-star, below the luxury feel of the photo`);
+  }
+  if (listing.guestRating && listing.guestRating < 8) {
+    gaps.push(`is rated ${listing.guestRating}/10, lower than the others here`);
+  }
+  if (listing.reviewCount !== null && listing.reviewCount < 10) {
+    gaps.push(`has only ${listing.reviewCount} reviews, so the rating is unproven`);
+  }
+  if (!listing.priceValue) {
+    gaps.push('has no live price for these dates');
+  }
+  return gaps;
+}
+
 /** Deterministic caption used when the caption model call fails. */
 function fallbackCaption(analysis, listing) {
+  const [gap] = findGaps(analysis, listing);
+  if (gap) {
+    const strength = listing.stars
+      ? `a ${listing.stars}-star ${(listing.type ?? 'stay').toLowerCase()}`
+      : (listing.type ?? 'stay').toLowerCase();
+    return `This one ${gap} — but it's still ${strength} in ${analysis.vibe} territory.`;
+  }
+
   const bits = [];
   if (listing.stars) bits.push(`${listing.stars}-star`);
   bits.push(listing.type ? listing.type.toLowerCase() : 'stay');

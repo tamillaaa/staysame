@@ -68,8 +68,9 @@ The app opens on [http://localhost:5173](http://localhost:5173).
 ### 5. Try it out
 
 Upload or drag in an inspiration photo and click "Find my stay." The app
-analyzes the photo, shows the detected vibe and amenities as tags, then
-searches for real stays and renders the matching hotel cards.
+analyzes the photo and opens with a short second-person narrative of the trip,
+which sits alone for a beat before the vibe tags, destination picker and hotel
+cards fade in beneath it.
 
 The destination picker under the tags lets you steer the search:
 
@@ -94,7 +95,8 @@ Returns the Gemini analysis:
   "amenities": ["pool", "ocean view"],
   "destination_guess": "Santorini, Greece",
   "price_tier": "mid",
-  "description": "Sun-bleached cliffside terraces above turquoise water."
+  "description": "Sun-bleached cliffside terraces above turquoise water.",
+  "narrative": "You are tracing worn stone paths through the sun-baked village..."
 }
 ```
 
@@ -162,6 +164,14 @@ they were derived from, or `null`). Each stay is:
 - **"Anywhere" tolerates partial failure.** The three destination searches run
   in parallel via `Promise.allSettled`; if one geocodes badly or rate-limits,
   the others still return. Only an all-failed result raises an error.
+- **Captions name only gaps we can prove.** The brief for this feature was to
+  compare a listing's amenities against the photo's — but Stay22 returns no
+  amenity data, so "no pool here" would be invented. `findGaps()` instead
+  derives shortfalls from fields that do exist (price above the tier band, star
+  class below a luxury vibe, a rating under 8, fewer than 10 reviews, no live
+  price) and the prompt forbids asserting that a property has or lacks any
+  amenity. Photo features are raised as unconfirmed — "we can't promise the
+  plunge pool" — never as absent.
 - **Match captions degrade gracefully.** They come from a second batched Gemini
   call; if it fails or is rate-limited, the server falls back to a rule-based
   caption built from star rating and guest score rather than failing the search.
