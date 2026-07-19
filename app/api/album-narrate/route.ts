@@ -3,6 +3,10 @@ import { ElevenLabsError, synthesizeSpeech } from '@/lib/elevenlabs';
 import { MAX_ALBUM_PHOTOS, VibeError, generateAlbumNarration } from '@/lib/gemini';
 import type { AlbumNarrationRequest, NarrateResponse } from '@/lib/types';
 
+// Gemini script generation plus ElevenLabs TTS can exceed Vercel's default
+// 10s serverless timeout, which fails as HTML, not JSON.
+export const maxDuration = 60;
+
 function bad(error: string, code: string) {
   return NextResponse.json({ error, code }, { status: 400 });
 }

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ElevenLabsError, generateSoundEffect } from '@/lib/elevenlabs';
 
+// A single ElevenLabs generation call is normally fast, but this guards
+// against Vercel's default 10s serverless timeout failing as HTML, not JSON.
+export const maxDuration = 30;
+
 const MAX_CAPTION_LENGTH = 300;
 const MELODY_DURATION_SECONDS = 6;
 

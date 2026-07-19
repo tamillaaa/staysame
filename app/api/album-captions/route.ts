@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { ACCEPTED_IMAGE_TYPES, MAX_ALBUM_PHOTOS, MAX_IMAGE_BYTES, VibeError, captionAlbum } from '@/lib/gemini';
 import type { AlbumCaptionResponse } from '@/lib/types';
 
+// A batched Gemini vision call over up to 10 photos can exceed Vercel's
+// default 10s serverless timeout, which fails as HTML, not JSON.
+export const maxDuration = 60;
+
 function bad(error: string, code: string, status = 400) {
   return NextResponse.json({ error, code }, { status });
 }

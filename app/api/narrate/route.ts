@@ -4,6 +4,10 @@ import { VibeError, generateNarration } from '@/lib/gemini';
 import { TIME_BLOCKS } from '@/lib/types';
 import type { ItineraryItem, NarrateRequest, NarrateResponse } from '@/lib/types';
 
+// Gemini script generation plus ElevenLabs TTS can exceed Vercel's default
+// 10s serverless timeout, which fails as HTML, not JSON.
+export const maxDuration = 60;
+
 const MAX_ITEMS = 12;
 
 function bad(error: string, code: string) {

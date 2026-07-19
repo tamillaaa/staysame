@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ElevenLabsError, generateSoundEffect } from '@/lib/elevenlabs';
 
+// A single ElevenLabs generation call is normally fast, but this guards
+// against Vercel's default 10s serverless timeout failing as HTML, not JSON.
+export const maxDuration = 30;
+
 // Fixed, whitelisted prompts — never pass client-supplied text to a paid
 // generation API.
 const EFFECTS: Record<string, { prompt: string; durationSeconds: number }> = {

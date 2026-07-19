@@ -15,6 +15,11 @@ import type {
   Spot,
 } from '@/lib/types';
 
+// Grounding calls plus Claude's adaptive thinking regularly exceed Vercel's
+// default 10s serverless timeout, which fails as an HTML error page (not
+// JSON), surfacing to the client as a generic "could not reach the server."
+export const maxDuration = 60;
+
 const MAX_TRIP_DAYS = 14;
 
 function addDays(iso: string, days: number): string {
