@@ -7,10 +7,10 @@ export default function Home() {
   return (
     <main className="page">
       <section className="snap-section hero-section" id="hero" data-snap-label="Welcome">
-        <nav className="topbar" aria-label="Stay Here">
+        <nav className="topbar" aria-label="Stay Same">
           <div className="brand-lockup">
-            <span className="brand-stamp">SH</span>
-            <span>STAY HERE</span>
+            <span className="brand-stamp">SS</span>
+            <span>STAY SAME</span>
           </div>
           <div className="topbar-right">
             <span className="topbar-note">TRAVEL WITH A BETTER STORY</span>

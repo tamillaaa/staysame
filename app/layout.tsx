@@ -4,7 +4,7 @@ import { auth0, isAuth0Configured } from '@/lib/auth0';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Stay Here',
+  title: 'Stay Same',
   description: 'Plan a trip from a vibe: itineraries, real events, and playful side quests.',
 };
 

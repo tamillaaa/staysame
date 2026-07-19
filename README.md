@@ -1,4 +1,4 @@
-# Stay Here
+# Stay Same
 
 Plan a trip from a vibe. The itinerary generator is the landing page: pick a
 destination (or let it surprise you), set a budget, and get a day-by-day plan
@@ -22,7 +22,7 @@ This repo holds two applications:
 
 | Path | What it is |
 | --- | --- |
-| `app/`, `lib/`, `supabase/` | **Stay Here** — the Next.js app documented below |
+| `app/`, `lib/`, `supabase/` | **Stay Same** — the Next.js app documented below |
 | `client/`, `server/` | **Ghostwriter** — the earlier Vite + Express photo-to-hotel prototype, kept for its working Gemini and Stay22 integrations. See [Ghostwriter](#ghostwriter-legacy-prototype) below. |
 
 ## Setup
@@ -68,7 +68,7 @@ supabase db push
    into `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`.
 4. Generate `AUTH0_SECRET`: `openssl rand -hex 32`.
 5. Under **Applications → APIs**, create a new API (any name, any identifier
-   URI, e.g. `https://stay-here-api`). This is what makes Auth0 issue a real
+   URI, e.g. `https://stay-same-api`). This is what makes Auth0 issue a real
    JWT instead of an opaque token. Put that identifier in
    `NEXT_PUBLIC_AUTH0_AUDIENCE`.
 6. In the **Supabase dashboard**, under **Authentication → Sign In /
