@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Auth0Provider } from '@auth0/nextjs-auth0/client';
-import { auth0, isAuth0Configured } from '@/lib/auth0';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,13 +7,11 @@ export const metadata: Metadata = {
   description: 'Plan a trip from a vibe: itineraries, real events, and playful side quests.',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = isAuth0Configured() ? await auth0.getSession() : null;
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Auth0Provider user={session?.user}>{children}</Auth0Provider>
+        <Auth0Provider>{children}</Auth0Provider>
       </body>
     </html>
   );
