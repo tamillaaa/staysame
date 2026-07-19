@@ -132,7 +132,7 @@ export default function PhotoTab({
 
         if (response.status === 404) {
           // One destination with no inventory shouldn't break the whole tab.
-          setStays({ status: 'empty', message: 'No matches for this one yet — try another.' });
+          setStays({ status: 'empty', message: 'No matches for this one yet, try another.' });
           return;
         }
         if (!response.ok) {
@@ -180,6 +180,15 @@ export default function PhotoTab({
 
   return (
     <div className="photo-tab">
+      <div className="photo-head">
+        <h2>Turn one photo into your next trip</h2>
+        <p className="hint">
+          Drop a photo with the vibe you&apos;re chasing: golden light, tiled alleys, a moody
+          coastline. We read its mood and colours, then suggest three real places that match, each
+          with stays to go with it. Pick one and hand it straight to the trip planner.
+        </p>
+      </div>
+
       <div
         className={`dropzone${dragging ? ' dragging' : ''}`}
         onClick={() => inputRef.current?.click()}
@@ -238,7 +247,7 @@ export default function PhotoTab({
       )}
 
       {reading && (
-        <GlobeLoader lines={READING_LINES} sub="Reading your photo — this takes a few seconds." />
+        <GlobeLoader lines={READING_LINES} sub="Reading your photo, this takes a few seconds." />
       )}
 
       {analysis && !reading && (
@@ -269,7 +278,7 @@ export default function PhotoTab({
 
           {!analysis.imageUrl && (
             <p className="hint" style={{ marginTop: 12 }}>
-              Photo not saved — Supabase Storage isn&apos;t configured, so it lives only in this tab.
+              Photo not saved. Supabase Storage isn&apos;t configured, so it lives only in this tab.
             </p>
           )}
         </section>

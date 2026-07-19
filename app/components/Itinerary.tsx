@@ -12,7 +12,7 @@ function formatDateRange(start: string | null, end: string | null): string {
     day: 'numeric',
     timeZone: 'UTC',
   });
-  return `${fmt.format(new Date(`${start}T00:00:00Z`))} – ${fmt.format(new Date(`${end}T00:00:00Z`))}`;
+  return `${fmt.format(new Date(`${start}T00:00:00Z`))} to ${fmt.format(new Date(`${end}T00:00:00Z`))}`;
 }
 
 /** Say plainly what the itinerary was built from, rather than implying it's all verified. */
@@ -22,7 +22,7 @@ function groundingNote(sources: GenerateItineraryResponse['sources']): string | 
   if (!sources.ticketmasterConfigured) missing.push('Ticketmaster');
 
   if (missing.length) {
-    return `${missing.join(' and ')} ${missing.length > 1 ? 'keys are' : 'key is'} not configured, so this itinerary is from the model's own knowledge — double-check opening times before you go.`;
+    return `${missing.join(' and ')} ${missing.length > 1 ? 'keys are' : 'key is'} not configured, so this itinerary is from the model's own knowledge. Double-check opening times before you go.`;
   }
   if (sources.events === 0) {
     return `Grounded in ${sources.spots} real places. No ticketed events were on sale for these dates.`;
@@ -102,7 +102,7 @@ export default function Itinerary({ trip }: { trip: GenerateItineraryResponse })
         {note && <p className="hint" style={{ marginTop: 10 }}>{note}</p>}
         {!trip.persisted && (
           <p className="hint" style={{ marginTop: 6 }}>
-            Not saved — Supabase isn&apos;t configured, so this trip lives only in this tab.
+            Not saved. Supabase isn&apos;t configured, so this trip lives only in this tab.
           </p>
         )}
       </div>

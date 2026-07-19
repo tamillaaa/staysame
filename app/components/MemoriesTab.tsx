@@ -326,7 +326,7 @@ export default function MemoriesTab({ defaultDestination }: { defaultDestination
         <h2>Turn your trip photos into a keepsake</h2>
         <p className="hint">
           Upload photos from the trip you just took. Each one gets a short caption and its own little
-          melody — hover a photo to hear it. Drag the film reel below to reorder them, and once a few
+          melody (hover a photo to hear it). Drag the film reel below to reorder them, and once a few
           are captioned you can turn the set into a short spoken story.
         </p>
       </div>
@@ -376,7 +376,7 @@ export default function MemoriesTab({ defaultDestination }: { defaultDestination
       )}
 
       {captioning && (
-        <GlobeLoader lines={CAPTIONING_LINES} sub="Reading your photos — this takes a few seconds." />
+        <GlobeLoader lines={CAPTIONING_LINES} sub="Reading your photos, this takes a few seconds." />
       )}
 
       {photos.length > 0 && (
@@ -443,7 +443,7 @@ export default function MemoriesTab({ defaultDestination }: { defaultDestination
                       dragIdRef.current = null;
                       setDragOverId(null);
                     }}
-                    title={`Photo ${index + 1} — drag to reorder`}
+                    title={`Photo ${index + 1}, drag to reorder`}
                   >
                     <img src={photo.previewUrl} alt="" />
                   </div>

@@ -268,14 +268,14 @@ export default function PlanTab({
       )}
 
       {trip && !loading && (
-        <>
+        <div className="snap-section results-section" id="results" data-snap-label="Your trip">
           <Itinerary trip={trip} />
           <HotelPicks
             trip={trip}
             confirmedStay={confirmedStay}
             onConfirmStay={onConfirmStay}
           />
-        </>
+        </div>
       )}
     </>
   );

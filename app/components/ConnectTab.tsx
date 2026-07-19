@@ -26,7 +26,7 @@ export default function ConnectTab({
         <h2>You&apos;re staying at {confirmedStay.hotelName}</h2>
         <p>
           {confirmedStay.checkIn} to {confirmedStay.checkOut}. Your QR code and the travelers there
-          on overlapping dates come next — that step needs sign-in, so it lands with auth.
+          on overlapping dates come next. That step needs sign-in, so it lands with auth.
         </p>
         <button type="button" className="link" onClick={onGoToPlan}>
           {trip ? 'Back to your itinerary' : 'Plan the full trip'}
@@ -52,7 +52,7 @@ export default function ConnectTab({
         <h2>Pick where you&apos;re staying</h2>
         <p>
           Your {trip.destination} trip is ready. Choose a stay under &ldquo;Where to stay&rdquo; and
-          mark it as yours — that&apos;s what generates your traveler code.
+          mark it as yours. That&apos;s what generates your traveler code.
         </p>
         <button type="button" className="link" onClick={onGoToPlan}>
           Back to your itinerary
@@ -66,7 +66,7 @@ export default function ConnectTab({
       <div className="connect-pitch">
         <span className="badge">Upcoming</span>
         <p>
-          Want to meet your neighbors during your stay? We left you a hint in your room — if you
+          Want to meet your neighbors during your stay? We left you a hint in your room. If you
           followed the signs correctly, you might just meet your best friend on this trip.
         </p>
       </div>

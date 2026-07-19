@@ -18,7 +18,7 @@ const STATUS_LINES = [
  */
 export default function GlobeLoader({
   lines = STATUS_LINES,
-  sub = 'Real spots, real events — this takes a few seconds.',
+  sub = 'Real spots, real events. This takes a few seconds.',
 }: {
   /** Override the cycling copy; the photo flow isn't searching for events. */
   lines?: readonly string[];
