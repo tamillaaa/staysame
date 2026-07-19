@@ -14,9 +14,12 @@ const nextConfig: NextConfig = {
   // which requires this module tree before any API handler can run.
   outputFileTracingIncludes: {
     '/*': [
-      './node_modules/next/dist/server/node-environment.js',
-      './node_modules/next/dist/server/node-environment-baseline.js',
-      './node_modules/next/dist/server/node-environment-extensions/**/*',
+      './node_modules/next/dist/server/**/*',
+      './node_modules/next/dist/shared/**/*',
+      './node_modules/next/dist/lib/**/*',
+      './node_modules/next/dist/client/lib/console.*',
+      './node_modules/next/dist/compiled/source-map/**/*',
+      './node_modules/next/dist/compiled/ws/**/*',
     ],
   },
 };
