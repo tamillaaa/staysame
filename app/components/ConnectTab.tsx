@@ -18,8 +18,10 @@ export default function ConnectTab({
   confirmedStay: ConfirmedStay | null;
   onGoToPlan: () => void;
 }) {
+  let body: React.ReactNode;
+
   if (confirmedStay) {
-    return (
+    body = (
       <div className="empty">
         <h2>You&apos;re staying at {confirmedStay.hotelName}</h2>
         <p>
@@ -31,10 +33,8 @@ export default function ConnectTab({
         </button>
       </div>
     );
-  }
-
-  if (!trip) {
-    return (
+  } else if (!trip) {
+    body = (
       <div className="empty">
         <h2>No trip yet</h2>
         <p>
@@ -46,18 +46,31 @@ export default function ConnectTab({
         </button>
       </div>
     );
+  } else {
+    body = (
+      <div className="empty">
+        <h2>Pick where you&apos;re staying</h2>
+        <p>
+          Your {trip.destination} trip is ready. Choose a stay under &ldquo;Where to stay&rdquo; and
+          mark it as yours — that&apos;s what generates your traveler code.
+        </p>
+        <button type="button" className="link" onClick={onGoToPlan}>
+          Back to your itinerary
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="empty">
-      <h2>Pick where you&apos;re staying</h2>
-      <p>
-        Your {trip.destination} trip is ready. Choose a stay under &ldquo;Where to stay&rdquo; and
-        mark it as yours — that&apos;s what generates your traveler code.
-      </p>
-      <button type="button" className="link" onClick={onGoToPlan}>
-        Back to your itinerary
-      </button>
+    <div className="connect-tab">
+      <div className="connect-pitch">
+        <span className="badge">Upcoming</span>
+        <p>
+          Want to meet your neighbors during your stay? We left you a hint in your room — if you
+          followed the signs correctly, you might just meet your best friend on this trip.
+        </p>
+      </div>
+      {body}
     </div>
   );
 }

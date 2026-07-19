@@ -1,4 +1,4 @@
-# Vibe Trip
+# Stay Here
 
 Plan a trip from a vibe. The itinerary generator is the landing page: pick a
 destination (or let it surprise you), set a budget, and get a day-by-day plan
@@ -21,7 +21,7 @@ This repo holds two applications:
 
 | Path | What it is |
 | --- | --- |
-| `app/`, `lib/`, `supabase/` | **Vibe Trip** — the Next.js app documented below |
+| `app/`, `lib/`, `supabase/` | **Stay Here** — the Next.js app documented below |
 | `client/`, `server/` | **Ghostwriter** — the earlier Vite + Express photo-to-hotel prototype, kept for its working Gemini and Stay22 integrations. See [Ghostwriter](#ghostwriter-legacy-prototype) below. |
 
 ## Setup
@@ -44,7 +44,7 @@ Then fill in `.env.local`:
 | `STAY22_API_KEY` | Hotel matching | Optional. Without it Stay22 runs in demo mode, capped at 5 requests/minute. |
 | `STAY22_AID` | Booking attribution | Optional. Without it bookings are not attributed to your affiliate account, and the UI says so. |
 | `GEMINI_API_KEY` | Photo tab, album captions, and narration scripts | Required. Without it `/api/vibe-to-destination`, `/api/album-captions`, `/api/narrate` and `/api/album-narrate`'s script steps all return a clear 500. |
-| `ELEVENLABS_API_KEY` | Narration and voice-note audio | Optional. Without it `/api/narrate` and `/api/album-narrate` return a clear 500; everything else is unaffected. |
+| `ELEVENLABS_API_KEY` | Narration, voice-note, and sound-effect audio | Optional. Without it `/api/narrate` and `/api/album-narrate` return a clear 500, and `/api/album-sfx` fails silently (no sound plays); everything else is unaffected. |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` | Narration voice/model | Optional. Default to ElevenLabs' premade "Rachel" voice and `eleven_turbo_v2_5`. |
 
 Apply the database schema with the Supabase CLI:
@@ -71,10 +71,14 @@ not reload the page.
   inline here once Stay22 is wired up.
 - **From a photo** — the image-to-destination uploader. Selecting a suggested
   destination switches back to the plan tab with it pre-filled.
-- **Memories** — upload photos from the trip you just took and get a short
-  caption per photo, plus an optional voice note over the set. Independent of
-  any planned itinerary; nothing here is persisted — it lives in the tab for
-  the session, same as the itinerary's narration audio.
+- **Memories** — a whimsical scrapbook for photos from the trip you just took:
+  polaroid-style cards with a short caption per photo, each with its own tiny
+  ElevenLabs-generated melody that plays with a floating musical-note animation
+  on hover, an optional voice note over the whole set, sound effects on
+  add/remove, drag-to-reorder on a film-tape strip, and an ash-dissolve
+  animation when a photo is removed. Independent of any planned itinerary;
+  nothing here is persisted — it lives in the tab for the session, same as the
+  itinerary's narration audio.
 - **Connect** — the solo-traveler QR connector, unlocked by a booked hotel.
 
 ## API
@@ -169,6 +173,25 @@ and in the past tense — a recollection rather than a preview. `destination` is
 optional context; the Memories tab isn't tied to a specific planned trip.
 Returns the same `{ script, audioBase64, mimeType }` shape.
 
+### `GET /api/album-sfx?effect=add|remove`
+
+Generates a short (~2.5s) sound effect with ElevenLabs' sound-generation
+endpoint from one of two fixed, whitelisted prompts — never client-supplied
+text — and streams back raw `audio/mpeg` with a long `Cache-Control`, since
+the same effect is safe to cache hard. The Memories tab plays `add` when
+photos land in the album and `remove` when one is deleted, both fire-and-forget
+(a failed or unconfigured request just plays nothing).
+
+### `GET /api/album-melody?caption=<url-encoded caption>`
+
+Generates a short (~6s), looping instrumental melody from ElevenLabs' sound
+generation endpoint, wrapping the photo's own caption in a fixed
+music-generation template server-side. Also cached hard, keyed on the caption
+text — the same photo always gets the same melody within a browser's cache
+lifetime. The Memories tab lazily creates and caches an `<audio loop>` element
+per photo on first hover and just replays it on later hovers, so only the
+first hover per photo pays the ~2-3s generation cost.
+
 ## Implementation notes
 
 - **Structured outputs, not prompt-and-parse.** The itinerary comes back through
@@ -237,6 +260,25 @@ Returns the same `{ script, audioBase64, mimeType }` shape.
   narration audio. Nothing is uploaded to Supabase Storage or saved to a
   table — closing the tab loses the album. This was a deliberate scope call
   for this branch, not a missing-key degradation like the rest of the app.
+- **Sound effects are prompts, not files.** `add` and `remove` aren't checked-in
+  audio assets — they're generated on demand from a fixed text prompt via
+  ElevenLabs' sound-generation endpoint and cached hard at the HTTP layer
+  (`Cache-Control: public, max-age=86400`), so the first play per browser costs
+  a generation and every play after is free. Never pass client-supplied text to
+  this endpoint — the route only accepts an `effect` key against a server-side
+  whitelist.
+- **Reordering is native HTML5 drag-and-drop, desktop only.** The film-tape
+  strip swaps two photos live on `dragover` rather than waiting for `drop`, so
+  the reorder is visible mid-drag. No touch-drag fallback exists yet — this
+  matches the rest of the app's scope (no mobile-specific interaction layer
+  anywhere else either).
+- **Per-photo melodies are templated, not free-form.** `/api/album-melody`
+  never forwards raw request input to ElevenLabs — the `caption` query param
+  is Gemini's own writing (already vetted by the captioning prompt), truncated
+  and wrapped in a fixed instrumental-music template before it reaches the
+  generation call. Melodies are fetched lazily on first hover and reused for
+  every hover after, rather than generated on every `mouseenter` — a fresh
+  ~2-3s generation on every hover would feel broken, not charming.
 
 ---
 

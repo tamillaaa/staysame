@@ -4,10 +4,10 @@ import TripPlanner from './components/TripPlanner';
 export default function Home() {
   return (
     <main className="page">
-      <nav className="topbar" aria-label="Vibe Trip">
+      <nav className="topbar" aria-label="Stay Here">
         <div className="brand-lockup">
-          <span className="brand-stamp">VT</span>
-          <span>VIBE TRIP</span>
+          <span className="brand-stamp">SH</span>
+          <span>STAY HERE</span>
         </div>
         <span className="topbar-note">TRAVEL WITH A BETTER STORY</span>
       </nav>

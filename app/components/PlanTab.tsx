@@ -208,10 +208,6 @@ export default function PlanTab({
           </div>
         )}
 
-        {mode === 'surprise_me' && (
-          <p className="notice">We&apos;ll pick a destination that suits your budget.</p>
-        )}
-
         <div className="field">
           <span className="field-label">Budget</span>
           <div className="choice-row">

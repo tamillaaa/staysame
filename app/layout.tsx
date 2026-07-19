@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Vibe Trip',
+  title: 'Stay Here',
   description: 'Plan a trip from a vibe: itineraries, real events, and playful side quests.',
 };
 
