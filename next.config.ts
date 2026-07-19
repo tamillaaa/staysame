@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       './node_modules/next/dist/lib/**/*',
       './node_modules/next/dist/client/**/*',
       './node_modules/next/dist/compiled/**/*',
+      './node_modules/next/dist/build/adapter/setup-node-env.external.*',
       './node_modules/@swc/helpers/**/*',
       './node_modules/react/**/*',
       './node_modules/react-dom/**/*',
