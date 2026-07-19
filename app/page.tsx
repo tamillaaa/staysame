@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import TripPlanner from './components/TripPlanner';
 import ScrollDots from './components/ScrollDots';
+import AuthStatus from './components/AuthStatus';
 
 export default function Home() {
   return (
@@ -11,7 +12,10 @@ export default function Home() {
             <span className="brand-stamp">SH</span>
             <span>STAY HERE</span>
           </div>
-          <span className="topbar-note">TRAVEL WITH A BETTER STORY</span>
+          <div className="topbar-right">
+            <span className="topbar-note">TRAVEL WITH A BETTER STORY</span>
+            <AuthStatus />
+          </div>
         </nav>
         <header className="masthead">
           <div className="masthead-copy">

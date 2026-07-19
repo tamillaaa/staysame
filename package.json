@@ -16,6 +16,7 @@
   "homepage": "https://github.com/tamillaaa/staysame#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
+    "@auth0/nextjs-auth0": "^4.25.0",
     "@google/genai": "^2.12.0",
     "@supabase/supabase-js": "^2.110.7",
     "next": "^16.2.10",

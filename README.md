@@ -11,9 +11,10 @@ ElevenLabs (voice narration).
 
 > **Status:** this branch contains the foundation, the itinerary generator,
 > Stay22 hotel matching, the photo-to-destination flow, audio narration of a
-> selected day recap, and a post-trip photo album with captions and an
-> optional voice note. The traveler connector is unlocked by confirming a
-> stay, but its QR code and matching still need auth.
+> selected day recap, a post-trip photo album with captions and an optional
+> voice note, and Auth0 sign-in wired through to Supabase RLS. The traveler
+> connector is unlocked by confirming a stay; login now works, but the actual
+> QR code and matching logic still isn't built.
 
 ## Repository layout
 
@@ -46,12 +47,35 @@ Then fill in `.env.local`:
 | `GEMINI_API_KEY` | Photo tab, album captions, and narration scripts | Required. Without it `/api/vibe-to-destination`, `/api/album-captions`, `/api/narrate` and `/api/album-narrate`'s script steps all return a clear 500. |
 | `ELEVENLABS_API_KEY` | Narration, voice-note, and sound-effect audio | Optional. Without it `/api/narrate` and `/api/album-narrate` return a clear 500, and `/api/album-sfx` fails silently (no sound plays); everything else is unaffected. |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` | Narration voice/model | Optional. Default to ElevenLabs' premade "Rachel" voice and `eleven_turbo_v2_5`. |
+| `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET` | Sign-in | Required for login. Without them the SDK logs a startup warning and `/auth/login` fails; the rest of the app is unaffected. |
+| `APP_BASE_URL` | Sign-in | Optional. Defaults to inferring the base URL from the request host; set explicitly for a stable production domain. |
+| `NEXT_PUBLIC_AUTH0_AUDIENCE` | Sign-in tied to Supabase | Required for `auth.uid()` to resolve. Without it Auth0 issues an opaque token Supabase can't verify, so RLS-scoped writes (as opposed to the service-role ones already in place) silently fail. |
 
 Apply the database schema with the Supabase CLI:
 
 ```bash
 supabase db push
 ```
+
+### Setting up Auth0
+
+1. Create an Auth0 account at [auth0.com](https://auth0.com) if you don't have
+   one, then create an application of type **Regular Web Application**.
+2. Under that application's settings, add to **Allowed Callback URLs**:
+   `http://localhost:3000/auth/callback`, and to **Allowed Logout URLs**:
+   `http://localhost:3000`.
+3. Copy the application's **Domain**, **Client ID**, and **Client Secret**
+   into `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`.
+4. Generate `AUTH0_SECRET`: `openssl rand -hex 32`.
+5. Under **Applications → APIs**, create a new API (any name, any identifier
+   URI, e.g. `https://stay-here-api`). This is what makes Auth0 issue a real
+   JWT instead of an opaque token. Put that identifier in
+   `NEXT_PUBLIC_AUTH0_AUDIENCE`.
+6. In the **Supabase dashboard**, under **Authentication → Sign In /
+   Providers → Third-Party Auth**, add Auth0 as a provider using the same
+   Auth0 domain. This is what makes `auth.uid()` resolve from an Auth0-issued
+   token inside RLS policies; without this step, login will work but every
+   RLS-scoped Supabase read/write will behave as if no one is signed in.
 
 Then run it:
 
@@ -279,6 +303,20 @@ first hover per photo pays the ~2-3s generation cost.
   generation call. Melodies are fetched lazily on first hover and reused for
   every hover after, rather than generated on every `mouseenter` — a fresh
   ~2-3s generation on every hover would feel broken, not charming.
+- **Two Supabase clients, two trust levels.** `getServiceClient()` uses the
+  service-role key and bypasses RLS entirely; it's what the itinerary and
+  hotel-match routes use today for anonymous, pre-login writes.
+  `getUserScopedClient(accessToken)` uses the anon key plus a signed-in
+  user's Auth0 access token, so `auth.uid()` resolves and RLS actually
+  applies. Reach for the scoped client whenever a write should be attributed
+  to the person who's actually signed in, not the server's own privileges.
+- **Auth0 users aren't rows in `auth.users`.** Supabase's Third-Party Auth
+  makes `auth.uid()` resolve correctly from an Auth0 token without ever
+  creating a matching row in Supabase's own `auth.users` table. The original
+  schema's `references auth.users(id)` foreign keys on `trips.user_id` and
+  `traveler_codes.user_id` would therefore reject every insert from a real
+  signed-in user; a follow-up migration drops just the foreign key, leaving
+  the RLS policies (`auth.uid() = user_id`) untouched since those still work.
 
 ---
 
