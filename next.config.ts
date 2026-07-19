@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     '*': ['./client/**/*', './server/**/*'],
   },
+  // Vercel's Next 16 function tracer can omit these files when Auth0's proxy
+  // makes routes dynamic. The generated launcher loads setup-node-env.js,
+  // which requires this module tree before any API handler can run.
+  outputFileTracingIncludes: {
+    '/*': [
+      './node_modules/next/dist/server/node-environment.js',
+      './node_modules/next/dist/server/node-environment-baseline.js',
+      './node_modules/next/dist/server/node-environment-extensions/**/*',
+    ],
+  },
 };
 
 export default nextConfig;
