@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       './node_modules/next/dist/lib/**/*',
       './node_modules/next/dist/client/lib/console.*',
       './node_modules/next/dist/compiled/source-map/**/*',
+      './node_modules/next/dist/compiled/stacktrace-parser/**/*',
       './node_modules/next/dist/compiled/ws/**/*',
     ],
   },
