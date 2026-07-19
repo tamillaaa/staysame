@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // makes routes dynamic. The generated launcher loads setup-node-env.js,
   // which requires this module tree before any API handler can run.
   outputFileTracingIncludes: {
-    '/*': [
+    '*': [
       './node_modules/next/dist/server/**/*',
       './node_modules/next/dist/shared/**/*',
       './node_modules/next/dist/lib/**/*',
