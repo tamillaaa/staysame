@@ -111,6 +111,175 @@ main {
 .vibe-summary {
   font-size: 15px;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vibe-description {
+  margin: 0;
+  font-style: italic;
+  text-align: center;
+}
+
+.vibe-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vibe-tag {
+  padding: 4px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.loading-message {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.notice-message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  font-style: italic;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The reveal moment: the narrative arrives on its own, larger and quieter than
+   the UI around it, and the rest of the page follows a beat later. */
+.narrative {
+  margin: 12px 0;
+  max-width: 620px;
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  font-size: 22px;
+  line-height: 1.7;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--text-h);
+  animation: fade-up 1.1s ease both;
+}
+
+.reveal {
+  animation: fade-up 0.7s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .narrative,
+  .reveal {
+    animation: none;
+  }
+}
+
+.destination-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 460px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+.destination-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.destination-modes {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.mode-button {
+  padding: 7px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  color: #fff;
+  background: var(--accent);
+}
+
+.mode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.destination-input {
+  width: 100%;
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.destination-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.destination-hint {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+  color: var(--text);
+}
+
+.destination-submit {
+  width: 100%;
+  padding: 11px 20px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.destination-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .results-section {
@@ -169,8 +338,37 @@ main {
   color: var(--text);
 }
 
+/* Deliberately quieter than the listing copy: these captions name real
+   shortfalls, so they should read as an honest aside rather than ad copy. */
+.hotel-card-match {
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.85;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+
 .hotel-card-price {
   margin-top: auto;
   font-weight: 700;
   color: var(--text-h);
+}
+
+.hotel-card-book {
+  margin-top: 10px;
+  padding: 9px 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+}
+
+.hotel-card-book:hover {
+  color: #fff;
+  background: var(--accent);
 }
